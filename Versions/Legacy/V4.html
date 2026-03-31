@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Edge Spectrum V4</title>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#080c14;color:#d0dae6;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+        .hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 24px;background:linear-gradient(135deg,#0a1628,#152240);border-bottom:1px solid #1a2d50;flex-shrink:0}
+        .hdr h1{font-size:1.15rem;font-weight:700;background:linear-gradient(90deg,#4ade80,#facc15,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hdr p{font-size:.68rem;color:#556677;margin-top:1px}
+        .legend{display:flex;align-items:center;gap:6px;font-size:.68rem;color:#556677}
+        .legend-grad{width:120px;height:8px;border-radius:4px;background:linear-gradient(90deg,#22c55e,#86efac,#facc15,#f97316,#ef4444,#7f1d1d)}
+
+        /* Controls */
+        .ctrl-row{display:flex;align-items:center;gap:6px;padding:5px 24px;background:#0b1120;flex-shrink:0;flex-wrap:wrap}
+        .ctrl-row.bot{border-bottom:1px solid #151e30}
+        .ctrl-row label{font-size:.62rem;color:#445566;text-transform:uppercase;letter-spacing:.7px;min-width:52px}
+        .fbtn{padding:3px 10px;border-radius:12px;border:1px solid #1e2d45;background:#0f1724;color:#6688aa;font-size:.67rem;cursor:pointer;transition:all .15s;white-space:nowrap}
+        .fbtn:hover{border-color:#3b6a9f;color:#a0c0e0}
+        .fbtn.active{background:#1a3358;border-color:#3b82f6;color:#fff}
+        .tbtn{padding:3px 10px;border-radius:12px;border:1px solid #2d1e45;background:#170f24;color:#aa88cc;font-size:.67rem;cursor:pointer;transition:all .15s;white-space:nowrap}
+        .tbtn:hover{border-color:#7b3baf;color:#d0a0f0}
+        .tbtn.active{background:#2d1a58;border-color:#a855f7;color:#fff}
+        .sep{width:1px;height:18px;background:#1e2d45;margin:0 4px}
+
+        /* Metric display */
+        .metric-bar{display:flex;align-items:center;gap:12px;padding:4px 24px;background:#080e18;border-bottom:1px solid #111b28;flex-shrink:0;font-size:.7rem;color:#556677}
+        .metric-bar .val{color:#8899bb;font-weight:600}
+        .metric-bar .hl{color:#facc15;font-weight:700}
+
+        /* Chart */
+        .chart-wrap{flex:1;min-height:0;padding:0 8px 4px;position:relative}
+        #chart{width:100%;height:100%}
+
+        /* Tooltip */
+        .tt{display:none;position:fixed;z-index:9999;background:#101828;border:1px solid #253550;border-radius:10px;padding:0;min-width:360px;max-width:460px;box-shadow:0 12px 48px rgba(0,0,0,.7);pointer-events:none;overflow:hidden}
+        .tt-top{padding:10px 16px 8px;border-bottom:1px solid #1a2840}
+        .tt-title{font-weight:700;font-size:.9rem;color:#e8f0f8}
+        .tt-subtitle{font-size:.68rem;color:#556677;margin-top:2px}
+        .tt-focus{padding:8px 16px;background:#0d1522;border-bottom:1px solid #1a2840}
+        .tt-focus-row{display:flex;justify-content:space-between;padding:2px 0;font-size:.76rem}
+        .tt-lbl{color:#556677}
+        .tt-v{color:#c0d0e0;font-weight:600;text-align:right;max-width:220px}
+        .tt-horizons{padding:8px 16px;border-bottom:1px solid #1a2840}
+        .tt-hz-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.7px;color:#445566;margin-bottom:4px}
+        .tt-hz-row{display:flex;justify-content:space-between;padding:2px 0;font-size:.74rem}
+        .tt-hz-row.active{background:#1a2a45;margin:0 -16px;padding:2px 16px;border-radius:3px}
+        .tt-hz-label{color:#667788}
+        .tt-hz-val{font-weight:700;min-width:70px;text-align:right}
+        .tt-group{padding:6px 16px 10px;max-height:180px;overflow-y:auto}
+        .tt-group-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.7px;color:#445566;margin-bottom:4px}
+        .tt-item{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid #111b2a;font-size:.72rem}
+        .tt-item:last-child{border-bottom:none}
+        .tt-item.highlighted{background:#1a2a45;margin:0 -16px;padding:3px 16px;border-radius:3px}
+        .tt-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+        .tt-iname{flex:1;color:#8899aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .tt-item.highlighted .tt-iname{color:#e0e8f0;font-weight:600}
+        .tt-ival{font-weight:700;min-width:65px;text-align:right}
+        .footer{text-align:center;padding:3px;font-size:.58rem;color:#2a3545;flex-shrink:0}
+    </style>
+</head>
+<body>
+
+<div class="hdr">
+    <div>
+        <h1>The Edge Spectrum: Who Really Wins?</h1>
+        <p>Left = your advantage &bull; Right = house advantage &bull; Hover any bar for full breakdown across all time horizons</p>
+    </div>
+    <div class="legend">
+        <span>+Player</span>
+        <div class="legend-grad"></div>
+        <span>+House</span>
+    </div>
+</div>
+
+<div class="ctrl-row">
+    <label>Category:</label>
+    <button class="fbtn active" data-f="all">All</button>
+    <button class="fbtn" data-f="Stock Market">Stocks</button>
+    <button class="fbtn" data-f="Bonds">Bonds</button>
+    <button class="fbtn" data-f="Real Estate">RE</button>
+    <button class="fbtn" data-f="Cryptocurrency">Crypto</button>
+    <button class="fbtn" data-f="Options Selling">Opts (Sell)</button>
+    <button class="fbtn" data-f="Options Buying">Opts (Buy)</button>
+    <button class="fbtn" data-f="Active Trading">Trading</button>
+    <button class="fbtn" data-f="Sports Betting">Sports</button>
+    <button class="fbtn" data-f="Casino Gambling">Casino</button>
+    <button class="fbtn" data-f="Poker & Skill-Based">Poker/DFS</button>
+    <button class="fbtn" data-f="Prediction Markets">Predictions</button>
+    <button class="fbtn" data-f="Lottery">Lottery</button>
+</div>
+<div class="ctrl-row bot">
+    <label>Time:</label>
+    <button class="tbtn" data-t="1ev">1 Bet / 1 Month</button>
+    <button class="tbtn" data-t="25ev">25 Bets / 1 Day</button>
+    <button class="tbtn active" data-t="1yr">1 Year / 625 Bets</button>
+    <button class="tbtn" data-t="5yr">5 Years / 3,125 Bets</button>
+    <button class="tbtn" data-t="10yr">10 Years / 6,250 Bets</button>
+</div>
+
+<div class="metric-bar">
+    <span>Showing: <span class="val" id="mCount">0</span> items</span>
+    <span class="sep"></span>
+    <span>Best: <span class="val" id="mBest" style="color:#4ade80">—</span></span>
+    <span class="sep"></span>
+    <span>Worst: <span class="val" id="mWorst" style="color:#f87171">—</span></span>
+    <span class="sep"></span>
+    <span>Metric: <span class="hl" id="mMetric">$100 becomes...</span></span>
+</div>
+
+<div class="chart-wrap"><div id="chart"></div></div>
+<div class="tt" id="tt"></div>
+<div class="footer">The Edge Spectrum V4 &mdash; March 2026 &mdash; For Educational Purposes Only &mdash; $100 Starting Capital, Gambling: 10% Bankroll/Bet Multiplicative Model, Investing: Compound Returns</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// MATH HELPERS
+// ══════════════════════════════════════════════════════
+// Gambling: bankroll model (1 + f*edge)^N, f=0.10
+function gambResult(edge, N) {
+    const mult = 1 + 0.10 * (edge / 100);
+    const val = 100 * Math.pow(mult, N);
+    return Math.max(val, 0);
+}
+// Investing: compound return (1+r)^years * 100
+function investResult(annualPct, years) {
+    return 100 * Math.pow(1 + annualPct / 100, years);
+}
+// Investing monthly
+function investMonth(annualPct) {
+    return 100 * (Math.pow(1 + annualPct / 100, 1/12));
+}
+
+// ══════════════════════════════════════════════════════
+// DATA — base items with per-event edge + annual return
+// mode: "gamble" uses multiplicative bankroll model
+// mode: "invest" uses compound annual returns
+// ══════════════════════════════════════════════════════
+const RAW = [
+  // ── STOCK MARKET (invest mode) ──
+  {n:"NASDAQ 100 Index",cat:"Stock Market",g:"US Large Cap",mode:"invest",annual:12.5,type:"Index Fund",vol:"High",wp:"~72% of years",sk:"None (passive)"},
+  {n:"Small-Cap Value ETF",cat:"Stock Market",g:"US Small/Mid",mode:"invest",annual:12.0,type:"Factor ETF",vol:"High",wp:"~68% of years",sk:"None (passive)"},
+  {n:"S&P 500 Index",cat:"Stock Market",g:"S&P 500",mode:"invest",annual:10.0,type:"Index Fund",vol:"Med-High",wp:"~73% of years",sk:"None (passive)"},
+  {n:"Dow Jones Industrial Avg",cat:"Stock Market",g:"Dow Jones",mode:"invest",annual:9.5,type:"Index Fund",vol:"Med-High",wp:"~72% of years",sk:"None (passive)"},
+  {n:"International Developed ETF",cat:"Stock Market",g:"International",mode:"invest",annual:5.0,type:"Index Fund",vol:"Med-High",wp:"~63% of years",sk:"None (passive)"},
+  {n:"Emerging Markets ETF",cat:"Stock Market",g:"International",mode:"invest",annual:4.0,type:"Index Fund",vol:"High",wp:"~60% of years",sk:"None (passive)"},
+  {n:"Gold / Precious Metals",cat:"Stock Market",g:"Commodities",mode:"invest",annual:2.0,type:"Commodity",vol:"Medium",wp:"~58% of years",sk:"None (passive)"},
+  {n:"Commodity Index",cat:"Stock Market",g:"Commodities",mode:"invest",annual:1.0,type:"Commodity",vol:"High",wp:"~54% of years",sk:"None (passive)"},
+  {n:"Individual Stock Picking (Retail)",cat:"Stock Market",g:"Stock Picking",mode:"invest",annual:-2.0,type:"Active Investing",vol:"Very High",wp:"~45% of traders",sk:"High — most underperform"},
+  {n:"Penny Stocks (Retail Avg)",cat:"Stock Market",g:"Stock Picking",mode:"invest",annual:-30.0,type:"Speculative",vol:"Extreme",wp:"~10-15%",sk:"Extreme"},
+
+  // ── BONDS ──
+  {n:"High-Yield Corporate Bonds",cat:"Bonds",g:"Bonds",mode:"invest",annual:5.5,type:"Bond Fund",vol:"Medium",wp:"~80% of years",sk:"Low"},
+  {n:"US Treasury Bills",cat:"Bonds",g:"Bonds",mode:"invest",annual:4.3,type:"Government",vol:"Very Low",wp:"~99%+",sk:"None"},
+  {n:"Total US Bond Market",cat:"Bonds",g:"Bonds",mode:"invest",annual:3.5,type:"Bond Index",vol:"Low",wp:"~85% of years",sk:"None (passive)"},
+  {n:"Aggregate Bond ETF",cat:"Bonds",g:"Bonds",mode:"invest",annual:3.0,type:"Bond ETF",vol:"Low",wp:"~82% of years",sk:"None (passive)"},
+  {n:"TIPS Inflation-Protected",cat:"Bonds",g:"Bonds",mode:"invest",annual:1.5,type:"Inflation-Protected",vol:"Low",wp:"~90%+",sk:"None"},
+
+  // ── REAL ESTATE ──
+  {n:"REIT Index ETF",cat:"Real Estate",g:"Real Estate",mode:"invest",annual:8.0,type:"REIT ETF",vol:"Med-High",wp:"~70% of years",sk:"Low (passive)"},
+  {n:"Rental Property (Net)",cat:"Real Estate",g:"Real Estate",mode:"invest",annual:6.0,type:"Physical Property",vol:"Medium",wp:"~75%",sk:"Medium"},
+
+  // ── CRYPTO ──
+  {n:"Bitcoin Spot (Buy & Hold)",cat:"Cryptocurrency",g:"Bitcoin",mode:"invest",annual:45.0,type:"Spot Holding",vol:"Extreme",wp:"~65-85% depends on horizon",sk:"Low — just hold"},
+  {n:"Ethereum Spot (Buy & Hold)",cat:"Cryptocurrency",g:"Ethereum/Alts",mode:"invest",annual:10.0,type:"Spot Holding",vol:"Extreme",wp:"~60% of years",sk:"Low — just hold"},
+  {n:"Stablecoin Yield Farming",cat:"Cryptocurrency",g:"DeFi",mode:"invest",annual:5.0,type:"DeFi",vol:"Low-Med",wp:"~80%",sk:"Medium"},
+  {n:"DeFi LP Major Pairs",cat:"Cryptocurrency",g:"DeFi",mode:"invest",annual:2.0,type:"DeFi",vol:"Medium",wp:"~65%",sk:"Med-High"},
+  {n:"DeFi LP Volatile Pairs",cat:"Cryptocurrency",g:"DeFi",mode:"invest",annual:-10.0,type:"DeFi",vol:"Extreme",wp:"~35%",sk:"High"},
+  {n:"Altcoin Portfolio (Retail)",cat:"Cryptocurrency",g:"Ethereum/Alts",mode:"invest",annual:-15.0,type:"Speculative",vol:"Extreme",wp:"~25-30%",sk:"Very High"},
+  {n:"Meme Coins (Retail Avg)",cat:"Cryptocurrency",g:"Ethereum/Alts",mode:"invest",annual:-70.0,type:"Speculative",vol:"Extreme",wp:"~5-10%",sk:"Extreme — lottery"},
+
+  // ── OPTIONS SELLING (invest mode) ──
+  {n:"Iron Condor Selling",cat:"Options Selling",g:"Options Selling",mode:"invest",annual:10.0,type:"Options Selling",vol:"Low-Med",wp:"~70-80% per trade",sk:"Med-High"},
+  {n:"Cash-Secured Put Selling",cat:"Options Selling",g:"Options Selling",mode:"invest",annual:8.0,type:"Options Selling",vol:"Medium",wp:"~70-75%",sk:"Medium"},
+  {n:"Covered Call Writing",cat:"Options Selling",g:"Options Selling",mode:"invest",annual:7.0,type:"Options Selling",vol:"Low-Med",wp:"~65-70%",sk:"Low-Med"},
+  {n:"Managed Futures / CTA",cat:"Options Selling",g:"Managed Futures",mode:"invest",annual:3.0,type:"CTA Fund",vol:"Medium",wp:"~58%",sk:"Professional"},
+
+  // ── OPTIONS BUYING (gamble mode) ──
+  {n:"Commodity Futures (Retail)",cat:"Options Buying",g:"Futures Trading",mode:"gamble",edge:-8.0,type:"Futures",vol:"Very High",wp:"~30%",sk:"Very High"},
+  {n:"ATM Options Buying (30-Day)",cat:"Options Buying",g:"Options Buying",mode:"gamble",edge:-15.0,type:"Options Buying",vol:"Very High",wp:"~35-40%",sk:"High"},
+  {n:"Leveraged Futures Day Trading",cat:"Options Buying",g:"Futures Trading",mode:"gamble",edge:-25.0,type:"Futures",vol:"Extreme",wp:"~15-20%",sk:"Extreme"},
+  {n:"OTM Options Buying (30-Day)",cat:"Options Buying",g:"Options Buying",mode:"gamble",edge:-35.0,type:"Options Buying",vol:"Extreme",wp:"~15-20%",sk:"Very High"},
+  {n:"0DTE Options (Retail Avg)",cat:"Options Buying",g:"Options Buying",mode:"gamble",edge:-50.0,type:"Options Buying",vol:"Extreme",wp:"~20-30%",sk:"Extreme — gamma gambling"},
+  {n:"Deep OTM Weekly Options",cat:"Options Buying",g:"Options Buying",mode:"gamble",edge:-60.0,type:"Options Buying",vol:"Extreme",wp:"~5-10%",sk:"Extreme — lottery ticket"},
+
+  // ── ACTIVE TRADING (invest mode — annual returns) ──
+  {n:"Swing Trading (Retail Avg)",cat:"Active Trading",g:"Active Trading",mode:"invest",annual:-5.0,type:"Active Trading",vol:"High",wp:"~40%",sk:"High"},
+  {n:"Retail Forex Trading",cat:"Active Trading",g:"Active Trading",mode:"invest",annual:-25.0,type:"Leveraged Trading",vol:"High",wp:"~15-20%",sk:"Extreme — 80%+ lose"},
+  {n:"Retail Day Trading",cat:"Active Trading",g:"Active Trading",mode:"invest",annual:-30.0,type:"Day Trading",vol:"Extreme",wp:"~5-10% profitable",sk:"Extreme — <5% sustain"},
+  {n:"Crypto Day Trading (Retail)",cat:"Active Trading",g:"Active Trading",mode:"invest",annual:-35.0,type:"Day Trading",vol:"Extreme",wp:"~5-8%",sk:"Extreme — 24/7 market"},
+
+  // ── SPORTS BETTING (gamble mode) ──
+  {n:"Single Game Spread (-110)",cat:"Sports Betting",g:"Straight Bets",mode:"gamble",edge:-4.55,type:"Straight Bet",vol:"Binary",wp:"47.6% to break even",sk:"Medium"},
+  {n:"Single Game Over/Under (-110)",cat:"Sports Betting",g:"Straight Bets",mode:"gamble",edge:-4.55,type:"Straight Bet",vol:"Binary",wp:"47.6% to break even",sk:"Medium"},
+  {n:"Moneyline (Standard Juice)",cat:"Sports Betting",g:"Straight Bets",mode:"gamble",edge:-4.55,type:"Straight Bet",vol:"Binary",wp:"Varies by price",sk:"Medium"},
+  {n:"Teaser 2-Team 6pt",cat:"Sports Betting",g:"Straight Bets",mode:"gamble",edge:-5.0,type:"Exotic",vol:"Binary",wp:"~73% needed",sk:"Low-Med"},
+  {n:"Live / In-Game Bet",cat:"Sports Betting",g:"Props & Exotics",mode:"gamble",edge:-6.5,type:"Live Bet",vol:"Binary",wp:"~45%",sk:"Med — rushed decisions"},
+  {n:"Player Prop Bet",cat:"Sports Betting",g:"Props & Exotics",mode:"gamble",edge:-7.0,type:"Prop",vol:"Binary",wp:"~44%",sk:"Medium"},
+  {n:"Season Win Total Future",cat:"Sports Betting",g:"Sports Futures",mode:"gamble",edge:-8.0,type:"Futures",vol:"Locked Capital",wp:"~42%",sk:"Medium"},
+  {n:"2-Team Parlay",cat:"Sports Betting",g:"Parlays",mode:"gamble",edge:-10.0,type:"Parlay",vol:"High",wp:"~25%",sk:"Low — vig compounds"},
+  {n:"Championship Future",cat:"Sports Betting",g:"Sports Futures",mode:"gamble",edge:-12.0,type:"Futures",vol:"Locked Capital",wp:"Varies by team",sk:"Medium"},
+  {n:"3-Team Parlay",cat:"Sports Betting",g:"Parlays",mode:"gamble",edge:-12.5,type:"Parlay",vol:"Very High",wp:"~12.5%",sk:"Low"},
+  {n:"4-Team Parlay",cat:"Sports Betting",g:"Parlays",mode:"gamble",edge:-15.0,type:"Parlay",vol:"Very High",wp:"~6.25%",sk:"Very Low"},
+  {n:"Same-Game Parlay (SGP)",cat:"Sports Betting",g:"Parlays",mode:"gamble",edge:-15.0,type:"SGP",vol:"Very High",wp:"~5-10%",sk:"Very Low — hidden vig"},
+  {n:"First Touchdown Scorer",cat:"Sports Betting",g:"Props & Exotics",mode:"gamble",edge:-18.0,type:"Prop",vol:"Very High",wp:"~8-12%",sk:"Very Low"},
+  {n:"5-Team Parlay",cat:"Sports Betting",g:"Parlays",mode:"gamble",edge:-20.0,type:"Parlay",vol:"Extreme",wp:"~3.1%",sk:"None"},
+  {n:"Correct Score (Soccer)",cat:"Sports Betting",g:"Props & Exotics",mode:"gamble",edge:-20.0,type:"Exotic",vol:"Extreme",wp:"~5-8%",sk:"Very Low"},
+  {n:"6-Team Parlay",cat:"Sports Betting",g:"Parlays",mode:"gamble",edge:-25.0,type:"Parlay",vol:"Extreme",wp:"~1.6%",sk:"None"},
+  {n:"8-Team Parlay",cat:"Sports Betting",g:"Parlays",mode:"gamble",edge:-30.0,type:"Parlay",vol:"Extreme",wp:"~0.4%",sk:"None"},
+  {n:"10-Team Parlay",cat:"Sports Betting",g:"Parlays",mode:"gamble",edge:-35.0,type:"Parlay",vol:"Extreme",wp:"~0.1%",sk:"None — pure lottery"},
+
+  // ── CASINO (gamble mode) ──
+  {n:"Blackjack (Card Counting Hi-Lo)",cat:"Casino Gambling",g:"Blackjack",mode:"gamble",edge:1.0,type:"Table (Skilled)",vol:"Medium",wp:"~51%",sk:"Very High — years to master"},
+  {n:"Video Poker 9/6 JoB (Perfect Play)",cat:"Casino Gambling",g:"Video Poker",mode:"gamble",edge:-0.46,type:"Machine (Skilled)",vol:"Medium",wp:"~49.5%",sk:"High — perfect strategy"},
+  {n:"Blackjack 3:2 (Basic Strategy)",cat:"Casino Gambling",g:"Blackjack",mode:"gamble",edge:-0.5,type:"Table Game",vol:"Medium",wp:"~49.5%",sk:"Medium"},
+  {n:"Baccarat Banker (5% Commission)",cat:"Casino Gambling",g:"Baccarat",mode:"gamble",edge:-1.06,type:"Table Game",vol:"Medium",wp:"~50.7%",sk:"None"},
+  {n:"Baccarat Player",cat:"Casino Gambling",g:"Baccarat",mode:"gamble",edge:-1.24,type:"Table Game",vol:"Medium",wp:"~49.3%",sk:"None"},
+  {n:"Craps Don't Pass",cat:"Casino Gambling",g:"Craps",mode:"gamble",edge:-1.36,type:"Table Game",vol:"Medium",wp:"~49.3%",sk:"None"},
+  {n:"Craps Pass Line",cat:"Casino Gambling",g:"Craps",mode:"gamble",edge:-1.41,type:"Table Game",vol:"Medium",wp:"~49.3%",sk:"None"},
+  {n:"Blackjack 6:5 (Basic Strategy)",cat:"Casino Gambling",g:"Blackjack",mode:"gamble",edge:-2.0,type:"Table Game",vol:"Medium",wp:"~48%",sk:"Medium — bad rules"},
+  {n:"Pai Gow Poker",cat:"Casino Gambling",g:"Other Table",mode:"gamble",edge:-2.5,type:"Table Game",vol:"Low (pushes)",wp:"~30% W / ~40% push",sk:"Low-Med"},
+  {n:"Roulette Single Zero",cat:"Casino Gambling",g:"Roulette",mode:"gamble",edge:-2.7,type:"Table Game",vol:"Medium",wp:"48.6%",sk:"None"},
+  {n:"Three Card Poker",cat:"Casino Gambling",g:"Other Table",mode:"gamble",edge:-3.4,type:"Table Game",vol:"Med-High",wp:"~44%",sk:"Low"},
+  {n:"Let It Ride",cat:"Casino Gambling",g:"Other Table",mode:"gamble",edge:-3.5,type:"Table Game",vol:"High",wp:"~24% win anything",sk:"Low"},
+  {n:"Slots Loose (95% RTP)",cat:"Casino Gambling",g:"Slots",mode:"gamble",edge:-5.0,type:"Machine",vol:"High",wp:"~30-35% pay",sk:"None"},
+  {n:"Caribbean Stud Poker",cat:"Casino Gambling",g:"Other Table",mode:"gamble",edge:-5.2,type:"Table Game",vol:"High",wp:"~45%",sk:"Low"},
+  {n:"Roulette Double Zero",cat:"Casino Gambling",g:"Roulette",mode:"gamble",edge:-5.26,type:"Table Game",vol:"Medium",wp:"47.4%",sk:"None"},
+  {n:"Slots Average (92% RTP)",cat:"Casino Gambling",g:"Slots",mode:"gamble",edge:-8.0,type:"Machine",vol:"High",wp:"~25-30%",sk:"None"},
+  {n:"Slots Tight (85% RTP)",cat:"Casino Gambling",g:"Slots",mode:"gamble",edge:-15.0,type:"Machine",vol:"Very High",wp:"~20%",sk:"None"},
+  {n:"Big Six Wheel",cat:"Casino Gambling",g:"Other Table",mode:"gamble",edge:-16.0,type:"Table Game",vol:"High",wp:"~44% ($1 bet)",sk:"None"},
+  {n:"Keno 4-Spot",cat:"Casino Gambling",g:"Keno",mode:"gamble",edge:-28.0,type:"Keno",vol:"Extreme",wp:"~26% any match",sk:"None"},
+  {n:"Keno 10-Spot",cat:"Casino Gambling",g:"Keno",mode:"gamble",edge:-35.0,type:"Keno",vol:"Extreme",wp:"~5% meaningful win",sk:"None"},
+
+  // ── POKER / DFS (gamble mode) ──
+  {n:"Poker Skilled (Live Cash)",cat:"Poker & Skill-Based",g:"Poker",mode:"gamble",edge:5.0,type:"Skill Game",vol:"High",wp:"~60% of sessions",sk:"Very High — top 30%"},
+  {n:"DFS Top 5% Player",cat:"Poker & Skill-Based",g:"DFS",mode:"gamble",edge:5.0,type:"Skill Game",vol:"Very High",wp:"~55% ROI+ weeks",sk:"Very High — top 5% only"},
+  {n:"Poker Skilled (Online)",cat:"Poker & Skill-Based",g:"Poker",mode:"gamble",edge:3.0,type:"Skill Game",vol:"High",wp:"~55% of sessions",sk:"Very High"},
+  {n:"Poker Skilled (Tournaments)",cat:"Poker & Skill-Based",g:"Poker",mode:"gamble",edge:2.0,type:"Skill Game",vol:"Extreme",wp:"~15-20% cash",sk:"Very High"},
+  {n:"Poker Average (Live Cash)",cat:"Poker & Skill-Based",g:"Poker",mode:"gamble",edge:-5.0,type:"Skill Game",vol:"High",wp:"~40%",sk:"High — rake kills avg"},
+  {n:"Poker Average (Online)",cat:"Poker & Skill-Based",g:"Poker",mode:"gamble",edge:-8.0,type:"Skill Game",vol:"High",wp:"~35%",sk:"Higher rake"},
+  {n:"DFS Average Player",cat:"Poker & Skill-Based",g:"DFS",mode:"gamble",edge:-12.0,type:"Skill Game",vol:"Very High",wp:"~30%",sk:"High — sharks dominate"},
+  {n:"DFS Casual Player",cat:"Poker & Skill-Based",g:"DFS",mode:"gamble",edge:-20.0,type:"Skill Game",vol:"Very High",wp:"~15-20%",sk:"Casual = fodder"},
+
+  // ── PREDICTION MARKETS (gamble mode) ──
+  {n:"Polymarket Elections",cat:"Prediction Markets",g:"Prediction Mkts",mode:"gamble",edge:-3.0,type:"Binary Contract",vol:"Binary",wp:"Priced by market",sk:"Medium — info edge"},
+  {n:"Polymarket SCOTUS / Events",cat:"Prediction Markets",g:"Prediction Mkts",mode:"gamble",edge:-3.0,type:"Binary Contract",vol:"Binary",wp:"Priced by market",sk:"Medium"},
+  {n:"Polymarket Oscars / Culture",cat:"Prediction Markets",g:"Prediction Mkts",mode:"gamble",edge:-4.0,type:"Binary Contract",vol:"Binary",wp:"Priced by market",sk:"Low-Med"},
+  {n:"Kalshi Economic Events",cat:"Prediction Markets",g:"Prediction Mkts",mode:"gamble",edge:-5.5,type:"Binary Contract",vol:"Binary",wp:"Priced by market",sk:"Med — econ helps"},
+  {n:"Kalshi Fed Rate Decision",cat:"Prediction Markets",g:"Prediction Mkts",mode:"gamble",edge:-5.5,type:"Binary Contract",vol:"Binary",wp:"Priced by market",sk:"Medium"},
+  {n:"Kalshi GDP Forecast",cat:"Prediction Markets",g:"Prediction Mkts",mode:"gamble",edge:-6.0,type:"Binary Contract",vol:"Binary",wp:"Priced by market",sk:"Medium"},
+  {n:"PredictIt US Politics (5%+5% Fees)",cat:"Prediction Markets",g:"Prediction Mkts",mode:"gamble",edge:-10.0,type:"Binary Contract",vol:"Binary",wp:"Priced by market",sk:"Med — high fees kill edge"},
+
+  // ── LOTTERY (gamble mode) ──
+  {n:"Scratch-Off Tickets (Avg State)",cat:"Lottery",g:"Lottery",mode:"gamble",edge:-35.0,type:"Instant",vol:"Extreme",wp:"~30% win < cost",sk:"None"},
+  {n:"Keno State-Run",cat:"Lottery",g:"Lottery",mode:"gamble",edge:-40.0,type:"Draw Game",vol:"Extreme",wp:"~25% any match",sk:"None"},
+  {n:"State Lottery Pick 3 / Pick 4",cat:"Lottery",g:"Lottery",mode:"gamble",edge:-50.0,type:"Draw Game",vol:"Extreme",wp:"~0.1% exact",sk:"None"},
+  {n:"Powerball / Mega Millions",cat:"Lottery",g:"Lottery",mode:"gamble",edge:-52.0,type:"Draw Game",vol:"Extreme",wp:"1 in 292M (jackpot)",sk:"None — pure luck"},
+];
+
+// ══════════════════════════════════════════════════════
+// COMPUTE $100 BECOMES at each time horizon
+// ══════════════════════════════════════════════════════
+const HORIZONS = ['1ev','25ev','1yr','5yr','10yr'];
+const HORIZON_LABELS = {
+    '1ev':'1 Bet / 1 Month',
+    '25ev':'25 Bets / 1 Day',
+    '1yr':'1 Year / 625 Bets',
+    '5yr':'5 Years / 3,125 Bets',
+    '10yr':'10 Years / 6,250 Bets'
+};
+const GAMBLE_N = {'1ev':1,'25ev':25,'1yr':625,'5yr':3125,'10yr':6250};
+const INVEST_YR = {'1ev':1/12,'25ev':2,'1yr':1,'5yr':5,'10yr':10};
+
+// Precompute all horizons for each item
+const D = RAW.map(r => {
+    const vals = {};
+    HORIZONS.forEach(h => {
+        if (r.mode === 'gamble') {
+            vals[h] = gambResult(r.edge, GAMBLE_N[h]);
+        } else {
+            vals[h] = investResult(r.annual, INVEST_YR[h]);
+        }
+    });
+    return {...r, vals};
+});
+
+// ── CATEGORY COLORS ──
+const CC = {
+    "Stock Market":"#3b82f6","Bonds":"#06b6d4","Real Estate":"#8b5cf6",
+    "Cryptocurrency":"#f59e0b","Options Selling":"#10b981","Options Buying":"#ec4899",
+    "Active Trading":"#ef4444","Sports Betting":"#22c55e",
+    "Casino Gambling":"#a855f7","Poker & Skill-Based":"#14b8a6",
+    "Prediction Markets":"#6366f1","Lottery":"#f43f5e"
+};
+
+// ── EDGE COLOR (based on $100 becomes value) ──
+function valColor(v) {
+    if (v >= 100) {
+        const t = Math.min((v - 100) / 200, 1); // 100..300 range
+        const r = Math.round(34 + (1-t)*186);
+        const g = Math.round(197 + t*58);
+        const b = Math.round(94 - t*60);
+        return `rgb(${r},${g},${b})`;
+    } else {
+        const t = Math.min((100 - v) / 100, 1); // 100..0 range
+        const r = Math.round(250 - t*123);
+        const g = Math.round(204 - t*175);
+        const b = Math.round(21 + t*8);
+        return `rgb(${r},${g},${b})`;
+    }
+}
+
+// ── STATE ──
+let catFilter = 'all';
+let timeFilter = '1yr';
+
+function filtered() {
+    let d = catFilter === 'all' ? [...D] : D.filter(x => x.cat === catFilter);
+    // Sort by current time horizon value, descending
+    d.sort((a,b) => b.vals[timeFilter] - a.vals[timeFilter]);
+    return d;
+}
+
+// ── FORMAT ──
+function fmt$(v) {
+    if (v >= 10000) return '$' + (v/1000).toFixed(0) + 'K';
+    if (v >= 1000) return '$' + (v/1000).toFixed(1) + 'K';
+    if (v < 0.005) return '$0.00';
+    if (v < 1) return '$' + v.toFixed(2);
+    return '$' + v.toFixed(2);
+}
+function fmtRet(v) {
+    const pct = v - 100;
+    const sign = pct >= 0 ? '+' : '';
+    if (Math.abs(pct) > 999) return sign + (pct/1000).toFixed(0) + 'K%';
+    return sign + pct.toFixed(1) + '%';
+}
+
+// ── TOOLTIP ──
+const ttEl = document.getElementById('tt');
+
+function showTT(item, data, evt) {
+    const v = item.vals[timeFilter];
+    const pct = v - 100;
+    const sign = pct >= 0 ? '+' : '';
+    const badgeBg = pct >= 0 ? '#14532d' : '#7f1d1d';
+    const badgeBdr = pct >= 0 ? '#22c55e' : '#ef4444';
+    const whoText = pct > 0 ? 'Player / Investor Advantage' : pct < 0 ? 'House / Market Advantage' : 'Break Even';
+    const catC = CC[item.cat] || '#667';
+    const edgeLabel = item.mode === 'gamble' ? `${item.edge > 0 ? '+':''}${item.edge}% per event` : `${item.annual > 0 ? '+':''}${item.annual}% annual`;
+
+    // Horizons section
+    let hzHTML = '<div class="tt-horizons"><div class="tt-hz-title">$100 Becomes Across All Time Horizons</div>';
+    HORIZONS.forEach(h => {
+        const hv = item.vals[h];
+        const hp = hv - 100;
+        const hs = hp >= 0 ? '+' : '';
+        const hc = hp >= 0 ? '#4ade80' : '#f87171';
+        const active = h === timeFilter ? ' active' : '';
+        hzHTML += `<div class="tt-hz-row${active}"><span class="tt-hz-label">${HORIZON_LABELS[h]}</span><span class="tt-hz-val" style="color:${hc}">${fmt$(hv)} (${hs}${hp.toFixed(1)}%)</span></div>`;
+    });
+    hzHTML += '</div>';
+
+    // Group siblings at current time horizon
+    const siblings = data.filter(x => x.g === item.g);
+    let groupHTML = '';
+    if (siblings.length > 1) {
+        groupHTML = `<div class="tt-group"><div class="tt-group-title">${item.g} — ${siblings.length} items at ${HORIZON_LABELS[timeFilter]}</div>`;
+        siblings.sort((a,b) => b.vals[timeFilter] - a.vals[timeFilter]);
+        for (const s of siblings) {
+            const sv = s.vals[timeFilter];
+            const hl = s.n === item.n ? ' highlighted' : '';
+            const c = valColor(sv);
+            const sc = sv >= 100 ? '#4ade80' : '#f87171';
+            groupHTML += `<div class="tt-item${hl}"><div class="tt-dot" style="background:${c}"></div><div class="tt-iname">${s.n}</div><div class="tt-ival" style="color:${sc}">${fmt$(sv)}</div></div>`;
+        }
+        groupHTML += '</div>';
+    }
+
+    ttEl.innerHTML = `
+        <div class="tt-top">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <div class="tt-title">${item.n}</div>
+                <div style="font-size:1rem;font-weight:800;padding:2px 10px;border-radius:6px;background:${badgeBg};border:1px solid ${badgeBdr};color:${badgeBdr};white-space:nowrap">${fmt$(v)}</div>
+            </div>
+            <div class="tt-subtitle">${whoText} &bull; <span style="color:${catC}">${item.cat}</span> &bull; ${edgeLabel}</div>
+        </div>
+        <div class="tt-focus">
+            <div class="tt-focus-row"><span class="tt-lbl">Type</span><span class="tt-v">${item.type}</span></div>
+            <div class="tt-focus-row"><span class="tt-lbl">Volatility</span><span class="tt-v">${item.vol}</span></div>
+            <div class="tt-focus-row"><span class="tt-lbl">Win Probability</span><span class="tt-v">${item.wp}</span></div>
+            <div class="tt-focus-row"><span class="tt-lbl">Per $100 (${HORIZON_LABELS[timeFilter]})</span><span class="tt-v" style="color:${badgeBdr}">${sign}$${Math.abs(pct).toFixed(2)}</span></div>
+            <div class="tt-focus-row"><span class="tt-lbl">Skill Factor</span><span class="tt-v">${item.sk}</span></div>
+        </div>
+        ${hzHTML}
+        ${groupHTML}
+    `;
+    ttEl.style.display = 'block';
+    posTT(evt);
+}
+
+function posTT(evt) {
+    const r = ttEl.getBoundingClientRect();
+    const p = 14;
+    let x = evt.clientX + p;
+    let y = evt.clientY - r.height / 2;
+    if (x + r.width > window.innerWidth - p) x = evt.clientX - r.width - p;
+    if (y < p) y = p;
+    if (y + r.height > window.innerHeight - p) y = window.innerHeight - r.height - p;
+    ttEl.style.left = x + 'px';
+    ttEl.style.top = y + 'px';
+}
+function hideTT() { ttEl.style.display = 'none'; }
+
+// ── RENDER ──
+function render() {
+    const data = filtered();
+
+    // Y-axis: "$100 becomes" value, shifted so $100 = 0 (bar extends from zero line)
+    const names = data.map(d => d.n);
+    const barVals = data.map(d => d.vals[timeFilter] - 100); // centered on zero
+    const absVals = data.map(d => d.vals[timeFilter]);
+    const colors = data.map(d => valColor(d.vals[timeFilter]));
+    const outlines = data.map(d => (CC[d.cat] || '#556') + '88');
+
+    // Update metric bar
+    const best = data.length ? data[0] : null;
+    const worst = data.length ? data[data.length - 1] : null;
+    document.getElementById('mCount').textContent = data.length;
+    document.getElementById('mBest').textContent = best ? `${best.n}: ${fmt$(best.vals[timeFilter])}` : '—';
+    document.getElementById('mWorst').textContent = worst ? `${worst.n}: ${fmt$(worst.vals[timeFilter])}` : '—';
+    document.getElementById('mMetric').textContent = `$100 becomes... (${HORIZON_LABELS[timeFilter]})`;
+
+    const trace = {
+        type: 'bar',
+        x: names,
+        y: barVals,
+        customdata: data,
+        marker: { color: colors, line: { color: outlines, width: 0.8 } },
+        hoverinfo: 'none',
+        hovertemplate: ' <extra></extra>'
+    };
+
+    // Dynamic y-range
+    const minV = Math.min(...barVals, -10);
+    const maxV = Math.max(...barVals, 10);
+    const pad = Math.max(Math.abs(minV), Math.abs(maxV)) * 0.12;
+
+    const layout = {
+        paper_bgcolor: '#080c14',
+        plot_bgcolor: '#080c14',
+        font: { family:'Segoe UI,system-ui,sans-serif', color:'#556677', size:9 },
+        margin: { l:55, r:20, t:16, b:8 },
+        hovermode: 'closest',
+        hoverdistance: 40,
+        xaxis: { showticklabels:false, showgrid:false, zeroline:false },
+        yaxis: {
+            title:{ text:'$100 Becomes (gain/loss)', font:{size:9,color:'#445566'} },
+            gridcolor:'#111b28',
+            zerolinecolor:'#facc15',
+            zerolinewidth:2.5,
+            tickprefix: '$',
+            tickformat: '+,.0f',
+            tickfont:{ size:9 },
+            range: [minV - pad, maxV + pad]
+        },
+        shapes:[{
+            type:'line',x0:-0.5,x1:data.length-0.5,y0:0,y1:0,
+            line:{color:'#facc1588',width:2,dash:'dot'}
+        }],
+        annotations:[
+            {x:0.02,y:1,xref:'paper',yref:'paper',xanchor:'left',yanchor:'top',text:'<b>\u2190 BEST</b>',showarrow:false,font:{color:'#4ade8088',size:10}},
+            {x:0.98,y:1,xref:'paper',yref:'paper',xanchor:'right',yanchor:'top',text:'<b>WORST \u2192</b>',showarrow:false,font:{color:'#f8717188',size:10}},
+            {x:0.5,y:1,xref:'paper',yref:'paper',xanchor:'center',yanchor:'top',text:'$100 START',showarrow:false,font:{color:'#facc1555',size:8}}
+        ],
+        showlegend:false,
+        bargap:0.08
+    };
+
+    Plotly.newPlot('chart', [trace], layout, {
+        displayModeBar:false, responsive:true, scrollZoom:false
+    });
+
+    const chartEl = document.getElementById('chart');
+    chartEl.on('plotly_hover', function(evtData) {
+        const pt = evtData.points[0];
+        showTT(pt.customdata, data, evtData.event);
+    });
+    chartEl.on('plotly_unhover', hideTT);
+    chartEl.addEventListener('mousemove', function(e) {
+        if (ttEl.style.display === 'block') posTT(e);
+    });
+}
+
+// ── EVENT LISTENERS ──
+document.querySelectorAll('.fbtn[data-f]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.fbtn[data-f]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        catFilter = btn.dataset.f;
+        render();
+    });
+});
+document.querySelectorAll('.tbtn[data-t]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tbtn[data-t]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        timeFilter = btn.dataset.t;
+        render();
+    });
+});
+
+window.addEventListener('resize', render);
+render();
+</script>
+</body>
+</html>

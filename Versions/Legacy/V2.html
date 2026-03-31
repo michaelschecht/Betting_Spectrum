@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Edge Spectrum V2</title>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0a0e17;
+            color: #e0e6ed;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #0a1628, #1a2a4a);
+            border-bottom: 1px solid #1e3a5f;
+            flex-shrink: 0;
+        }
+
+        .header-left h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #4ade80, #facc15, #ef4444);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-left p {
+            font-size: 0.75rem;
+            color: #667788;
+            margin-top: 2px;
+        }
+
+        .legend-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: #667788;
+        }
+
+        .legend-gradient {
+            width: 160px;
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(90deg, #22c55e, #a3e635, #facc15, #f97316, #ef4444, #991b1b);
+        }
+
+        /* ── CONTROLS ── */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 24px;
+            background: #0d1320;
+            border-bottom: 1px solid #1a2540;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .controls label {
+            font-size: 0.7rem;
+            color: #556677;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .filter-btn {
+            padding: 4px 12px;
+            border-radius: 14px;
+            border: 1px solid #222d42;
+            background: #111927;
+            color: #778899;
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .filter-btn:hover { border-color: #3b6a9f; color: #b0c0d0; }
+        .filter-btn.active { background: #1e3a5f; border-color: #3b82f6; color: #fff; }
+
+        .sort-group {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ── STATS ── */
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            padding: 8px 24px;
+            flex-shrink: 0;
+        }
+
+        .stat-card {
+            background: #111927;
+            border: 1px solid #1a2540;
+            border-radius: 8px;
+            padding: 8px 16px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .stat-card .label {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #556677;
+        }
+
+        .stat-card .value {
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .stat-card .sub {
+            font-size: 0.68rem;
+            color: #556677;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .positive { color: #4ade80; }
+        .negative { color: #f87171; }
+        .neutral { color: #facc15; }
+
+        /* ── CHART ── */
+        .chart-wrap {
+            flex: 1;
+            min-height: 0;
+            padding: 4px 12px 8px;
+            position: relative;
+        }
+
+        #mainChart { width: 100%; height: 100%; }
+
+        /* ── TOOLTIP (custom) ── */
+        .custom-tooltip {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            background: #141e30;
+            border: 1px solid #2a4060;
+            border-radius: 10px;
+            padding: 14px 18px;
+            min-width: 300px;
+            max-width: 380px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            pointer-events: none;
+            font-size: 0.82rem;
+        }
+
+        .tt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #1e3050;
+        }
+
+        .tt-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #e8f0f8;
+            max-width: 200px;
+        }
+
+        .tt-edge-badge {
+            font-size: 1.1rem;
+            font-weight: 800;
+            padding: 2px 10px;
+            border-radius: 6px;
+        }
+
+        .tt-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+        }
+
+        .tt-label { color: #667788; }
+        .tt-val { color: #c0d0e0; font-weight: 600; }
+
+        .tt-meter {
+            margin-top: 10px;
+            height: 6px;
+            background: #1a2540;
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .tt-meter-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .tt-category-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 6px;
+            font-size: 0.68rem;
+            color: #334455;
+            border-top: 1px solid #141e30;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <h1>The Edge Spectrum: Who Really Wins?</h1>
+        <p>Hover any bar for full breakdown &mdash; 99 bets, trades &amp; investments ranked by expected edge</p>
+    </div>
+    <div class="legend-bar">
+        <span>Player Edge</span>
+        <div class="legend-gradient"></div>
+        <span>House Edge</span>
+    </div>
+</div>
+
+<div class="controls">
+    <label>Filter:</label>
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="Stock Market">Stocks</button>
+    <button class="filter-btn" data-filter="Bonds">Bonds</button>
+    <button class="filter-btn" data-filter="Real Estate">Real Estate</button>
+    <button class="filter-btn" data-filter="Cryptocurrency">Crypto</button>
+    <button class="filter-btn" data-filter="Options & Derivatives">Options</button>
+    <button class="filter-btn" data-filter="Active Trading">Trading</button>
+    <button class="filter-btn" data-filter="Sports Betting">Sports</button>
+    <button class="filter-btn" data-filter="Casino Gambling">Casino</button>
+    <button class="filter-btn" data-filter="Poker & Skill-Based">Poker/DFS</button>
+    <button class="filter-btn" data-filter="Prediction Markets">Predictions</button>
+    <button class="filter-btn" data-filter="Lottery">Lottery</button>
+    <div class="sort-group">
+        <label>Sort:</label>
+        <button class="filter-btn active" data-sort="edge">By Edge</button>
+        <button class="filter-btn" data-sort="category">By Category</button>
+    </div>
+</div>
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="label">Best Edge</div>
+        <div class="value positive" id="sBest">+45.0%</div>
+        <div class="sub" id="sBestN">Bitcoin (5-Year Hold)</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Worst Edge</div>
+        <div class="value negative" id="sWorst">-70.0%</div>
+        <div class="sub" id="sWorstN">Meme Coins</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Player Advantage</div>
+        <div class="value positive" id="sPos">34</div>
+        <div class="sub">activities</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">House Advantage</div>
+        <div class="value negative" id="sNeg">65</div>
+        <div class="sub">activities</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Median</div>
+        <div class="value neutral" id="sMed">-5.0%</div>
+        <div class="sub">typical edge</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Showing</div>
+        <div class="value" id="sCount" style="color:#7aa2d4">99</div>
+        <div class="sub" id="sCountLabel">of 99</div>
+    </div>
+</div>
+
+<div class="chart-wrap">
+    <div id="mainChart"></div>
+</div>
+
+<div class="custom-tooltip" id="tooltip"></div>
+
+<div class="footer">The Edge Spectrum V2 &mdash; March 2026 &mdash; For Educational Purposes Only</div>
+
+<script>
+// ── DATA ──
+const DATA = [
+    // Stock Market
+    { name:"S&P 500 (5-Year Hold, Ann.)", edge:10.0, cat:"Stock Market", type:"Index Fund", timeframe:"5 Years", volatility:"Medium", winProb:"~88% (5yr rolling)", lossOn100:"Gain $10.00", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"S&P 500 (1-Year Hold)", edge:10.0, cat:"Stock Market", type:"Index Fund", timeframe:"1 Year", volatility:"Medium-High", winProb:"~73% of years", lossOn100:"Gain $10.00", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"S&P 500 (1-Month Hold)", edge:0.8, cat:"Stock Market", type:"Index Fund", timeframe:"1 Month", volatility:"High", winProb:"~60% of months", lossOn100:"Gain $0.80", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"NASDAQ 100 (1-Year Hold)", edge:12.5, cat:"Stock Market", type:"Index Fund", timeframe:"1 Year", volatility:"High", winProb:"~72% of years", lossOn100:"Gain $12.50", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"Small-Cap Value ETF (1-Year)", edge:12.0, cat:"Stock Market", type:"Factor ETF", timeframe:"1 Year", volatility:"High", winProb:"~68% of years", lossOn100:"Gain $12.00", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"Dow Jones (1-Year Hold)", edge:9.5, cat:"Stock Market", type:"Index Fund", timeframe:"1 Year", volatility:"Medium-High", winProb:"~72% of years", lossOn100:"Gain $9.50", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"Dow Jones (5-Year Hold, Ann.)", edge:9.5, cat:"Stock Market", type:"Index Fund", timeframe:"5 Years", volatility:"Medium", winProb:"~86% (5yr rolling)", lossOn100:"Gain $9.50", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"Dow Jones (1-Month Hold)", edge:0.8, cat:"Stock Market", type:"Index Fund", timeframe:"1 Month", volatility:"High", winProb:"~59% of months", lossOn100:"Gain $0.80", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"International ETF (5-Year, Ann.)", edge:5.0, cat:"Stock Market", type:"Index Fund", timeframe:"5 Years", volatility:"Medium", winProb:"~78% (5yr rolling)", lossOn100:"Gain $5.00", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"International ETF (1-Year)", edge:5.0, cat:"Stock Market", type:"Index Fund", timeframe:"1 Year", volatility:"Medium-High", winProb:"~63% of years", lossOn100:"Gain $5.00", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"International ETF (1-Month)", edge:0.4, cat:"Stock Market", type:"Index Fund", timeframe:"1 Month", volatility:"High", winProb:"~56% of months", lossOn100:"Gain $0.40", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"Emerging Markets ETF (1-Year)", edge:4.0, cat:"Stock Market", type:"Index Fund", timeframe:"1 Year", volatility:"High", winProb:"~60% of years", lossOn100:"Gain $4.00", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"Gold (Long-Term Annual)", edge:2.0, cat:"Stock Market", type:"Commodity", timeframe:"Annual", volatility:"Medium", winProb:"~58% of years", lossOn100:"Gain $2.00", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"Commodity Index (Annual)", edge:1.0, cat:"Stock Market", type:"Commodity", timeframe:"Annual", volatility:"High", winProb:"~54% of years", lossOn100:"Gain $1.00", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"Individual Stock Picking (Retail)", edge:-2.0, cat:"Stock Market", type:"Active Investing", timeframe:"Annual", volatility:"Very High", winProb:"~45% of retail traders", lossOn100:"Lose $2.00", ruin:"Moderate over years", skillFactor:"High — most underperform" },
+    { name:"Penny Stocks (Retail Avg)", edge:-30.0, cat:"Stock Market", type:"Speculative", timeframe:"Annual", volatility:"Extreme", winProb:"~10-15%", lossOn100:"Lose $30.00", ruin:"~6-12 months at avg pace", skillFactor:"Extreme — near-random outcomes" },
+    // Bonds
+    { name:"High-Yield Corporate Bonds", edge:5.5, cat:"Bonds", type:"Bond Fund", timeframe:"Annual", volatility:"Medium", winProb:"~80% of years", lossOn100:"Gain $5.50", ruin:"N/A — positive EV", skillFactor:"Low" },
+    { name:"Treasury Bills (Annual)", edge:4.3, cat:"Bonds", type:"Government", timeframe:"Annual", volatility:"Very Low", winProb:"~99%+", lossOn100:"Gain $4.30", ruin:"N/A — near zero risk", skillFactor:"None" },
+    { name:"Total US Bond Market (Annual)", edge:3.5, cat:"Bonds", type:"Bond Fund", timeframe:"Annual", volatility:"Low", winProb:"~85% of years", lossOn100:"Gain $3.50", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"Aggregate Bond ETF (Annual)", edge:3.0, cat:"Bonds", type:"Bond ETF", timeframe:"Annual", volatility:"Low", winProb:"~82% of years", lossOn100:"Gain $3.00", ruin:"N/A — positive EV", skillFactor:"None (passive)" },
+    { name:"TIPS (Annual, Real Return)", edge:1.5, cat:"Bonds", type:"Inflation-Protected", timeframe:"Annual", volatility:"Low", winProb:"~90%+ (real terms)", lossOn100:"Gain $1.50", ruin:"N/A — positive EV", skillFactor:"None" },
+    // Real Estate
+    { name:"REIT Index (Annual)", edge:8.0, cat:"Real Estate", type:"REIT ETF", timeframe:"Annual", volatility:"Medium-High", winProb:"~70% of years", lossOn100:"Gain $8.00", ruin:"N/A — positive EV", skillFactor:"Low (passive)" },
+    { name:"Rental Property (Net Annual)", edge:6.0, cat:"Real Estate", type:"Physical Property", timeframe:"Annual", volatility:"Medium", winProb:"~75% (net of costs)", lossOn100:"Gain $6.00", ruin:"N/A — positive EV", skillFactor:"Medium — management matters" },
+    // Crypto
+    { name:"Bitcoin (5-Year Hold, Ann.)", edge:45.0, cat:"Cryptocurrency", type:"Spot Holding", timeframe:"5 Years", volatility:"Extreme", winProb:"~85% (5yr rolling)", lossOn100:"Gain $45.00", ruin:"N/A — positive EV historically", skillFactor:"Low — just hold" },
+    { name:"Bitcoin (1-Year Hold)", edge:15.0, cat:"Cryptocurrency", type:"Spot Holding", timeframe:"1 Year", volatility:"Extreme", winProb:"~65% of years", lossOn100:"Gain $15.00", ruin:"N/A — positive EV", skillFactor:"Low — just hold" },
+    { name:"Bitcoin (1-Month Hold)", edge:3.0, cat:"Cryptocurrency", type:"Spot Holding", timeframe:"1 Month", volatility:"Extreme", winProb:"~55% of months", lossOn100:"Gain $3.00", ruin:"N/A — positive EV", skillFactor:"Low — just hold" },
+    { name:"Ethereum (1-Year Hold)", edge:10.0, cat:"Cryptocurrency", type:"Spot Holding", timeframe:"1 Year", volatility:"Extreme", winProb:"~60% of years", lossOn100:"Gain $10.00", ruin:"N/A — positive EV", skillFactor:"Low — just hold" },
+    { name:"Stablecoin Yield Farming", edge:5.0, cat:"Cryptocurrency", type:"DeFi", timeframe:"Annual", volatility:"Low-Medium", winProb:"~80% (smart contract risk)", lossOn100:"Gain $5.00", ruin:"Smart contract exploit risk", skillFactor:"Medium — protocol selection" },
+    { name:"DeFi LP (Major Pairs)", edge:2.0, cat:"Cryptocurrency", type:"DeFi", timeframe:"Annual", volatility:"Medium", winProb:"~65%", lossOn100:"Gain $2.00", ruin:"Impermanent loss + exploit risk", skillFactor:"Medium-High" },
+    { name:"DeFi LP (Volatile Pairs)", edge:-10.0, cat:"Cryptocurrency", type:"DeFi", timeframe:"Annual", volatility:"Extreme", winProb:"~35%", lossOn100:"Lose $10.00", ruin:"Impermanent loss likely", skillFactor:"High — usually net negative" },
+    { name:"Altcoin Portfolio (1-Year)", edge:-15.0, cat:"Cryptocurrency", type:"Speculative", timeframe:"1 Year", volatility:"Extreme", winProb:"~25-30%", lossOn100:"Lose $15.00", ruin:"~1-2 years", skillFactor:"Very High — most lose" },
+    { name:"Meme Coins (Avg Retail)", edge:-70.0, cat:"Cryptocurrency", type:"Speculative", timeframe:"Per Cycle", volatility:"Extreme", winProb:"~5-10%", lossOn100:"Lose $70.00", ruin:"Often 1 trade", skillFactor:"Extreme — near lottery" },
+    // Options
+    { name:"Iron Condor (Defined Risk)", edge:5.0, cat:"Options & Derivatives", type:"Options Selling", timeframe:"Per Trade", volatility:"Low-Medium", winProb:"~70-80% per trade", lossOn100:"Gain $5.00", ruin:"Low with proper sizing", skillFactor:"Medium-High" },
+    { name:"Cash-Secured Put Selling", edge:4.0, cat:"Options & Derivatives", type:"Options Selling", timeframe:"Per Trade", volatility:"Medium", winProb:"~70-75%", lossOn100:"Gain $4.00", ruin:"Low — you buy stock at discount", skillFactor:"Medium" },
+    { name:"Covered Call Writing", edge:3.0, cat:"Options & Derivatives", type:"Options Selling", timeframe:"Per Trade", volatility:"Low-Medium", winProb:"~65-70%", lossOn100:"Gain $3.00", ruin:"N/A — own underlying", skillFactor:"Low-Medium" },
+    { name:"Managed Futures (CTA, Ann.)", edge:3.0, cat:"Options & Derivatives", type:"Managed Fund", timeframe:"Annual", volatility:"Medium", winProb:"~58%", lossOn100:"Gain $3.00", ruin:"N/A — diversified", skillFactor:"Managed by professionals" },
+    { name:"Retail Commodity Speculation", edge:-8.0, cat:"Options & Derivatives", type:"Futures", timeframe:"Per Trade", volatility:"Very High", winProb:"~30%", lossOn100:"Lose $8.00", ruin:"~3-6 months active trading", skillFactor:"Very High — leverage kills" },
+    { name:"ATM Options Buying (30-Day)", edge:-15.0, cat:"Options & Derivatives", type:"Options Buying", timeframe:"30 Days", volatility:"Very High", winProb:"~35-40%", lossOn100:"Lose $15.00", ruin:"~20-30 trades", skillFactor:"High — time decay works against you" },
+    { name:"Leveraged Futures Day Trading", edge:-25.0, cat:"Options & Derivatives", type:"Futures", timeframe:"Annual", volatility:"Extreme", winProb:"~15-20%", lossOn100:"Lose $25.00", ruin:"~2-4 months", skillFactor:"Extreme — >90% lose" },
+    { name:"OTM Options Buying (30-Day)", edge:-35.0, cat:"Options & Derivatives", type:"Options Buying", timeframe:"30 Days", volatility:"Extreme", winProb:"~15-20%", lossOn100:"Lose $35.00", ruin:"~10-15 trades", skillFactor:"Very High — most expire worthless" },
+    { name:"0DTE Options (Retail Avg)", edge:-50.0, cat:"Options & Derivatives", type:"Options Buying", timeframe:"Same Day", volatility:"Extreme", winProb:"~20-30% (often all-or-nothing)", lossOn100:"Lose $50.00", ruin:"~5-10 trades", skillFactor:"Extreme — pure gamma gambling" },
+    { name:"Deep OTM Weekly Options", edge:-60.0, cat:"Options & Derivatives", type:"Options Buying", timeframe:"1 Week", volatility:"Extreme", winProb:"~5-10%", lossOn100:"Lose $60.00", ruin:"~3-5 trades", skillFactor:"Extreme — lottery ticket" },
+    // Active Trading
+    { name:"Swing Trading (Retail Avg)", edge:-5.0, cat:"Active Trading", type:"Active Trading", timeframe:"Annual", volatility:"High", winProb:"~40%", lossOn100:"Lose $5.00", ruin:"~1-2 years", skillFactor:"High — need real edge" },
+    { name:"Retail Forex Trading", edge:-25.0, cat:"Active Trading", type:"Active Trading", timeframe:"Annual", volatility:"High (leveraged)", winProb:"~15-20%", lossOn100:"Lose $25.00", ruin:"~3-6 months", skillFactor:"Extreme — 80%+ lose" },
+    { name:"Retail Day Trading (Annual Avg)", edge:-30.0, cat:"Active Trading", type:"Day Trading", timeframe:"Annual", volatility:"Extreme", winProb:"~5-10% are profitable", lossOn100:"Lose $30.00", ruin:"~3-6 months", skillFactor:"Extreme — <5% sustain profits" },
+    { name:"Crypto Day Trading (Retail Avg)", edge:-35.0, cat:"Active Trading", type:"Day Trading", timeframe:"Annual", volatility:"Extreme", winProb:"~5-8%", lossOn100:"Lose $35.00", ruin:"~2-4 months", skillFactor:"Extreme — 24/7 market amplifies losses" },
+    // Sports Betting
+    { name:"Single Game Spread (-110)", edge:-4.55, cat:"Sports Betting", type:"Straight Bet", timeframe:"Per Bet", volatility:"Binary", winProb:"47.6% needed to break even", lossOn100:"Lose $4.55", ruin:"~200 bets at 5% bankroll", skillFactor:"Medium — sharp bettors exist" },
+    { name:"Single Game O/U (-110)", edge:-4.55, cat:"Sports Betting", type:"Straight Bet", timeframe:"Per Bet", volatility:"Binary", winProb:"47.6% needed to break even", lossOn100:"Lose $4.55", ruin:"~200 bets at 5% bankroll", skillFactor:"Medium" },
+    { name:"Moneyline (Standard)", edge:-4.55, cat:"Sports Betting", type:"Straight Bet", timeframe:"Per Bet", volatility:"Binary", winProb:"Varies by price", lossOn100:"Lose $4.55", ruin:"~200 bets at 5% bankroll", skillFactor:"Medium" },
+    { name:"Teaser (2-Team, 6pt)", edge:-5.0, cat:"Sports Betting", type:"Exotic", timeframe:"Per Bet", volatility:"Binary", winProb:"~73% win rate needed", lossOn100:"Lose $5.00", ruin:"~180 bets", skillFactor:"Low-Medium" },
+    { name:"Live/In-Game Betting", edge:-6.5, cat:"Sports Betting", type:"Live Bet", timeframe:"Per Bet", volatility:"Binary", winProb:"~45%", lossOn100:"Lose $6.50", ruin:"~150 bets", skillFactor:"Medium — fast decisions = more mistakes" },
+    { name:"Player Prop Bets", edge:-7.0, cat:"Sports Betting", type:"Prop", timeframe:"Per Bet", volatility:"Binary", winProb:"~44%", lossOn100:"Lose $7.00", ruin:"~130 bets", skillFactor:"Medium — less efficient markets" },
+    { name:"Futures (Season Win Total)", edge:-8.0, cat:"Sports Betting", type:"Futures", timeframe:"Season", volatility:"Locked Capital", winProb:"~42%", lossOn100:"Lose $8.00", ruin:"Capital tied up all season", skillFactor:"Medium" },
+    { name:"2-Team Parlay", edge:-10.0, cat:"Sports Betting", type:"Parlay", timeframe:"Per Bet", volatility:"High", winProb:"~25% (2 coin flips)", lossOn100:"Lose $10.00", ruin:"~80 bets", skillFactor:"Low — vig compounds" },
+    { name:"Futures (Championship Winner)", edge:-12.0, cat:"Sports Betting", type:"Futures", timeframe:"Season", volatility:"Locked Capital", winProb:"Varies by team", lossOn100:"Lose $12.00", ruin:"Capital tied up all season", skillFactor:"Medium" },
+    { name:"3-Team Parlay", edge:-12.5, cat:"Sports Betting", type:"Parlay", timeframe:"Per Bet", volatility:"Very High", winProb:"~12.5%", lossOn100:"Lose $12.50", ruin:"~60 bets", skillFactor:"Low — vig compounds fast" },
+    { name:"4-Team Parlay", edge:-15.0, cat:"Sports Betting", type:"Parlay", timeframe:"Per Bet", volatility:"Very High", winProb:"~6.25%", lossOn100:"Lose $15.00", ruin:"~50 bets", skillFactor:"Very Low — math works against you" },
+    { name:"Same-Game Parlay (SGP)", edge:-15.0, cat:"Sports Betting", type:"Parlay", timeframe:"Per Bet", volatility:"Very High", winProb:"~5-10% (correlated legs)", lossOn100:"Lose $15.00", ruin:"~50 bets", skillFactor:"Very Low — hidden vig in correlation" },
+    { name:"First Touchdown Scorer", edge:-18.0, cat:"Sports Betting", type:"Prop", timeframe:"Per Bet", volatility:"Very High", winProb:"~8-12%", lossOn100:"Lose $18.00", ruin:"~40 bets", skillFactor:"Very Low — near random" },
+    { name:"5-Team Parlay", edge:-20.0, cat:"Sports Betting", type:"Parlay", timeframe:"Per Bet", volatility:"Extreme", winProb:"~3.1%", lossOn100:"Lose $20.00", ruin:"~35 bets", skillFactor:"None — pure vig extraction" },
+    { name:"Correct Score (Soccer)", edge:-20.0, cat:"Sports Betting", type:"Exotic", timeframe:"Per Bet", volatility:"Extreme", winProb:"~5-8%", lossOn100:"Lose $20.00", ruin:"~35 bets", skillFactor:"Very Low" },
+    { name:"6-Team Parlay", edge:-25.0, cat:"Sports Betting", type:"Parlay", timeframe:"Per Bet", volatility:"Extreme", winProb:"~1.6%", lossOn100:"Lose $25.00", ruin:"~28 bets", skillFactor:"None" },
+    { name:"8-Team Parlay", edge:-30.0, cat:"Sports Betting", type:"Parlay", timeframe:"Per Bet", volatility:"Extreme", winProb:"~0.4%", lossOn100:"Lose $30.00", ruin:"~22 bets", skillFactor:"None — entertainment only" },
+    { name:"10-Team Parlay", edge:-35.0, cat:"Sports Betting", type:"Parlay", timeframe:"Per Bet", volatility:"Extreme", winProb:"~0.1%", lossOn100:"Lose $35.00", ruin:"~18 bets", skillFactor:"None — pure lottery" },
+    // Casino
+    { name:"Blackjack (Card Counting)", edge:1.0, cat:"Casino Gambling", type:"Table Game (Skilled)", timeframe:"Per Hand", volatility:"Medium", winProb:"~51% of hands", lossOn100:"Gain $1.00", ruin:"Low with proper bankroll", skillFactor:"Very High — years to master" },
+    { name:"Video Poker (9/6 JoB, Optimal)", edge:-0.46, cat:"Casino Gambling", type:"Machine (Skilled)", timeframe:"Per Hand", volatility:"Medium", winProb:"~49.5% of hands", lossOn100:"Lose $0.46", ruin:"Very slow — best machine odds", skillFactor:"High — must play perfect strategy" },
+    { name:"Blackjack (3:2, Basic Strategy)", edge:-0.5, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Hand", volatility:"Medium", winProb:"~49.5% of hands", lossOn100:"Lose $0.50", ruin:"Very slow — ~2000 hands/$1K", skillFactor:"Medium — must know basic strategy" },
+    { name:"Baccarat (Banker)", edge:-1.06, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Hand", volatility:"Medium", winProb:"~50.7% (but 5% commission)", lossOn100:"Lose $1.06", ruin:"Slow — ~1000 hands/$1K", skillFactor:"None — pure chance" },
+    { name:"Baccarat (Player)", edge:-1.24, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Hand", volatility:"Medium", winProb:"~49.3% of hands", lossOn100:"Lose $1.24", ruin:"Slow — ~800 hands/$1K", skillFactor:"None — pure chance" },
+    { name:"Craps (Don't Pass)", edge:-1.36, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Roll", volatility:"Medium", winProb:"~49.3%", lossOn100:"Lose $1.36", ruin:"Slow — ~750 rolls/$1K", skillFactor:"None" },
+    { name:"Craps (Pass Line)", edge:-1.41, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Roll", volatility:"Medium", winProb:"~49.3%", lossOn100:"Lose $1.41", ruin:"Slow — ~700 rolls/$1K", skillFactor:"None" },
+    { name:"Blackjack (6:5, Basic Strategy)", edge:-2.0, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Hand", volatility:"Medium", winProb:"~48% of hands", lossOn100:"Lose $2.00", ruin:"~500 hands/$1K", skillFactor:"Medium — but bad rules" },
+    { name:"Pai Gow Poker", edge:-2.5, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Hand", volatility:"Low (many pushes)", winProb:"~30% win, ~40% push", lossOn100:"Lose $2.50", ruin:"Slow — lots of pushes extend play", skillFactor:"Low-Medium" },
+    { name:"Roulette (Single Zero)", edge:-2.70, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Spin", volatility:"Medium", winProb:"48.6% (even money bets)", lossOn100:"Lose $2.70", ruin:"~370 spins/$1K at $25", skillFactor:"None — pure chance" },
+    { name:"Three Card Poker", edge:-3.4, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Hand", volatility:"Medium-High", winProb:"~44%", lossOn100:"Lose $3.40", ruin:"~300 hands/$1K", skillFactor:"Low" },
+    { name:"Let It Ride", edge:-3.5, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Hand", volatility:"High", winProb:"~24% (win something)", lossOn100:"Lose $3.50", ruin:"~280 hands/$1K", skillFactor:"Low" },
+    { name:"Slot Machine (Loose, 95% RTP)", edge:-5.0, cat:"Casino Gambling", type:"Machine", timeframe:"Per Spin", volatility:"High", winProb:"~30-35% of spins pay something", lossOn100:"Lose $5.00", ruin:"~200 spins/$1K at $5", skillFactor:"None" },
+    { name:"Caribbean Stud Poker", edge:-5.2, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Hand", volatility:"High", winProb:"~45% (but payoffs matter)", lossOn100:"Lose $5.20", ruin:"~190 hands/$1K", skillFactor:"Low" },
+    { name:"Roulette (Double Zero)", edge:-5.26, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Spin", volatility:"Medium", winProb:"47.4% (even money bets)", lossOn100:"Lose $5.26", ruin:"~190 spins/$1K at $25", skillFactor:"None — pure chance" },
+    { name:"Slot Machine (Average)", edge:-8.0, cat:"Casino Gambling", type:"Machine", timeframe:"Per Spin", volatility:"High", winProb:"~25-30%", lossOn100:"Lose $8.00", ruin:"~125 spins/$1K at $5", skillFactor:"None" },
+    { name:"Slot Machine (Tight)", edge:-15.0, cat:"Casino Gambling", type:"Machine", timeframe:"Per Spin", volatility:"Very High", winProb:"~20%", lossOn100:"Lose $15.00", ruin:"~65 spins/$1K at $5", skillFactor:"None" },
+    { name:"Big Six Wheel", edge:-16.0, cat:"Casino Gambling", type:"Table Game", timeframe:"Per Spin", volatility:"High", winProb:"~44% ($1 bet)", lossOn100:"Lose $16.00", ruin:"~60 spins/$1K at $25", skillFactor:"None" },
+    { name:"Keno (4-Spot)", edge:-28.0, cat:"Casino Gambling", type:"Keno", timeframe:"Per Draw", volatility:"Extreme", winProb:"~26% (any match)", lossOn100:"Lose $28.00", ruin:"~35 draws/$1K at $5", skillFactor:"None — pure lottery" },
+    { name:"Keno (10-Spot)", edge:-35.0, cat:"Casino Gambling", type:"Keno", timeframe:"Per Draw", volatility:"Extreme", winProb:"~5% (meaningful win)", lossOn100:"Lose $35.00", ruin:"~28 draws/$1K at $5", skillFactor:"None — pure lottery" },
+    // Poker & Skill-Based
+    { name:"Poker (Skilled, Live Cash)", edge:5.0, cat:"Poker & Skill-Based", type:"Skill Game", timeframe:"Per Session", volatility:"High", winProb:"~60% of sessions", lossOn100:"Gain $5.00", ruin:"Low with bankroll mgmt", skillFactor:"Very High — top 30% to profit" },
+    { name:"DFS (Top 5% Players)", edge:5.0, cat:"Poker & Skill-Based", type:"Skill Game", timeframe:"Per Contest", volatility:"Very High", winProb:"~55% ROI positive weeks", lossOn100:"Gain $5.00", ruin:"Low with volume", skillFactor:"Very High — top 5% only" },
+    { name:"Online Poker (Skilled)", edge:3.0, cat:"Poker & Skill-Based", type:"Skill Game", timeframe:"Per Session", volatility:"High", winProb:"~55% of sessions", lossOn100:"Gain $3.00", ruin:"Low with bankroll mgmt", skillFactor:"Very High — higher rake pressure" },
+    { name:"Tournament Poker (Skilled)", edge:2.0, cat:"Poker & Skill-Based", type:"Skill Game", timeframe:"Per Tournament", volatility:"Extreme", winProb:"~15-20% cash", lossOn100:"Gain $2.00", ruin:"Need 100+ buy-in bankroll", skillFactor:"Very High" },
+    { name:"Poker (Average, Live Cash)", edge:-5.0, cat:"Poker & Skill-Based", type:"Skill Game", timeframe:"Per Session", volatility:"High", winProb:"~40% of sessions", lossOn100:"Lose $5.00", ruin:"~1-2 years", skillFactor:"High — rake eats average players" },
+    { name:"Online Poker (Average)", edge:-8.0, cat:"Poker & Skill-Based", type:"Skill Game", timeframe:"Per Session", volatility:"High", winProb:"~35% of sessions", lossOn100:"Lose $8.00", ruin:"~6 months", skillFactor:"Higher rake = harder to beat" },
+    { name:"DFS (Average Player)", edge:-12.0, cat:"Poker & Skill-Based", type:"Skill Game", timeframe:"Per Contest", volatility:"Very High", winProb:"~30%", lossOn100:"Lose $12.00", ruin:"~3-6 months", skillFactor:"High — sharks dominate" },
+    { name:"DFS (Casual Player)", edge:-20.0, cat:"Poker & Skill-Based", type:"Skill Game", timeframe:"Per Contest", volatility:"Very High", winProb:"~15-20%", lossOn100:"Lose $20.00", ruin:"~2-3 months", skillFactor:"Casual = cannon fodder" },
+    // Prediction Markets
+    { name:"Polymarket (Election/Politics)", edge:-3.0, cat:"Prediction Markets", type:"Binary Contract", timeframe:"Per Contract", volatility:"Binary", winProb:"Depends on contract", lossOn100:"Lose $3.00 (spread/fees)", ruin:"Slow — low fees", skillFactor:"Medium — info edge possible" },
+    { name:"Polymarket (SCOTUS Retirement)", edge:-3.0, cat:"Prediction Markets", type:"Binary Contract", timeframe:"Per Contract", volatility:"Binary", winProb:"Priced by market", lossOn100:"Lose $3.00", ruin:"Slow", skillFactor:"Medium" },
+    { name:"Polymarket (Oscar Best Picture)", edge:-4.0, cat:"Prediction Markets", type:"Binary Contract", timeframe:"Per Contract", volatility:"Binary", winProb:"Priced by market", lossOn100:"Lose $4.00", ruin:"Slow", skillFactor:"Low-Medium" },
+    { name:"Kalshi (Weather/Economic)", edge:-5.5, cat:"Prediction Markets", type:"Binary Contract", timeframe:"Per Contract", volatility:"Binary", winProb:"Priced by market", lossOn100:"Lose $5.50", ruin:"Moderate", skillFactor:"Medium — econ knowledge helps" },
+    { name:"Kalshi (Fed Rate Cut?)", edge:-5.5, cat:"Prediction Markets", type:"Binary Contract", timeframe:"Per Contract", volatility:"Binary", winProb:"Priced by market", lossOn100:"Lose $5.50", ruin:"Moderate", skillFactor:"Medium" },
+    { name:"Kalshi (US GDP > 3%?)", edge:-6.0, cat:"Prediction Markets", type:"Binary Contract", timeframe:"Per Contract", volatility:"Binary", winProb:"Priced by market", lossOn100:"Lose $6.00", ruin:"Moderate", skillFactor:"Medium" },
+    { name:"PredictIt (US Politics)", edge:-10.0, cat:"Prediction Markets", type:"Binary Contract", timeframe:"Per Contract", volatility:"Binary", winProb:"Priced by market", lossOn100:"Lose $10.00 (5% win fee + 5% withdrawal)", ruin:"~80 contracts", skillFactor:"Medium — high fees dominate" },
+    // Lottery
+    { name:"Scratch-Off Tickets (Average)", edge:-35.0, cat:"Lottery", type:"Instant", timeframe:"Per Ticket", volatility:"Extreme", winProb:"~30% win anything (most < cost)", lossOn100:"Lose $35.00", ruin:"~20 tickets/$1K at $10", skillFactor:"None" },
+    { name:"Keno (State-Run)", edge:-40.0, cat:"Lottery", type:"Draw Game", timeframe:"Per Draw", volatility:"Extreme", winProb:"~25% (any match)", lossOn100:"Lose $40.00", ruin:"~25 draws/$1K", skillFactor:"None" },
+    { name:"State Lottery (Pick 3/Pick 4)", edge:-50.0, cat:"Lottery", type:"Draw Game", timeframe:"Per Draw", volatility:"Extreme", winProb:"~0.1% (exact match)", lossOn100:"Lose $50.00", ruin:"~20 draws/$1K", skillFactor:"None" },
+    { name:"Powerball / Mega Millions", edge:-52.0, cat:"Lottery", type:"Draw Game", timeframe:"Per Draw", volatility:"Extreme", winProb:"1 in 292M (jackpot)", lossOn100:"Lose $52.00", ruin:"Immediate — almost always lose", skillFactor:"None — pure luck" },
+];
+
+// Sort by edge descending
+DATA.sort((a,b) => b.edge - a.edge);
+
+// ── CATEGORY COLORS ──
+const CAT_COLORS = {
+    "Stock Market": "#3b82f6",
+    "Bonds": "#06b6d4",
+    "Real Estate": "#8b5cf6",
+    "Cryptocurrency": "#f59e0b",
+    "Options & Derivatives": "#ec4899",
+    "Active Trading": "#ef4444",
+    "Sports Betting": "#22c55e",
+    "Casino Gambling": "#a855f7",
+    "Poker & Skill-Based": "#14b8a6",
+    "Prediction Markets": "#6366f1",
+    "Lottery": "#f43f5e"
+};
+
+// ── EDGE COLOR ──
+function edgeColor(e) {
+    if (e >= 0) {
+        const t = Math.min(e / 45, 1);
+        return `rgb(${Math.round(250-t*180)},${Math.round(200+t*55)},${Math.round(50-t*30)})`;
+    } else {
+        const t = Math.min(Math.abs(e) / 70, 1);
+        return `rgb(${Math.round(250-t*100)},${Math.round(200-t*180)},${Math.round(50-t*30)})`;
+    }
+}
+
+// ── STATE ──
+let filter = 'all';
+let sortMode = 'edge';
+
+function filtered() {
+    let d = filter === 'all' ? [...DATA] : DATA.filter(x => x.cat === filter);
+    if (sortMode === 'category') {
+        d.sort((a,b) => {
+            if (a.cat !== b.cat) return a.cat.localeCompare(b.cat);
+            return b.edge - a.edge;
+        });
+    } else {
+        d.sort((a,b) => b.edge - a.edge);
+    }
+    return d;
+}
+
+// ── CUSTOM TOOLTIP ──
+const ttEl = document.getElementById('tooltip');
+
+function showTooltip(d, evt) {
+    const sign = d.edge > 0 ? '+' : '';
+    const edgePct = `${sign}${d.edge.toFixed(2)}%`;
+    const badgeColor = d.edge > 0 ? '#166534' : d.edge < 0 ? '#7f1d1d' : '#78350f';
+    const badgeBorder = d.edge > 0 ? '#22c55e' : d.edge < 0 ? '#ef4444' : '#facc15';
+    const who = d.edge > 0 ? 'Player / Investor Advantage' : d.edge < 0 ? 'House / Market Advantage' : 'Break Even';
+    const catColor = CAT_COLORS[d.cat] || '#667';
+
+    ttEl.innerHTML = `
+        <div class="tt-header">
+            <div class="tt-name">${d.name}</div>
+            <div class="tt-edge-badge" style="background:${badgeColor};border:1px solid ${badgeBorder};color:${badgeBorder}">${edgePct}</div>
+        </div>
+        <div class="tt-row"><span class="tt-label">Who Wins</span><span class="tt-val" style="color:${badgeBorder}">${who}</span></div>
+        <div class="tt-row"><span class="tt-label">Type</span><span class="tt-val">${d.type}</span></div>
+        <div class="tt-row"><span class="tt-label">Timeframe</span><span class="tt-val">${d.timeframe}</span></div>
+        <div class="tt-row"><span class="tt-label">Volatility</span><span class="tt-val">${d.volatility}</span></div>
+        <div class="tt-row"><span class="tt-label">Win Probability</span><span class="tt-val">${d.winProb}</span></div>
+        <div class="tt-row"><span class="tt-label">Per $100</span><span class="tt-val" style="color:${badgeBorder}">${d.lossOn100}</span></div>
+        <div class="tt-row"><span class="tt-label">Ruin Speed</span><span class="tt-val">${d.ruin}</span></div>
+        <div class="tt-row"><span class="tt-label">Skill Factor</span><span class="tt-val">${d.skillFactor}</span></div>
+        <div class="tt-meter">
+            <div class="tt-meter-fill" style="width:${Math.min(100, ((d.edge + 70) / 115) * 100)}%;background:linear-gradient(90deg,${edgeColor(d.edge)},${edgeColor(d.edge)}88)"></div>
+        </div>
+        <div class="tt-category-tag" style="background:${catColor}22;color:${catColor};border:1px solid ${catColor}55">${d.cat}</div>
+    `;
+    ttEl.style.display = 'block';
+    positionTooltip(evt);
+}
+
+function positionTooltip(evt) {
+    const tt = ttEl;
+    const pad = 16;
+    let x = evt.clientX + pad;
+    let y = evt.clientY + pad;
+    const rect = tt.getBoundingClientRect();
+    if (x + rect.width > window.innerWidth - pad) x = evt.clientX - rect.width - pad;
+    if (y + rect.height > window.innerHeight - pad) y = evt.clientY - rect.height - pad;
+    tt.style.left = x + 'px';
+    tt.style.top = y + 'px';
+}
+
+function hideTooltip() { ttEl.style.display = 'none'; }
+
+// ── STATS ──
+function updateStats(data) {
+    const best = data[0], worst = data[data.length-1];
+    const pos = data.filter(d=>d.edge>0).length;
+    const neg = data.filter(d=>d.edge<0).length;
+    const sorted = data.map(d=>d.edge).sort((a,b)=>a-b);
+    const med = sorted[Math.floor(sorted.length/2)];
+
+    const fmt = (v) => (v>0?'+':'')+v.toFixed(1)+'%';
+    document.getElementById('sBest').textContent = fmt(best.edge);
+    document.getElementById('sBest').className = 'value '+(best.edge>=0?'positive':'negative');
+    document.getElementById('sBestN').textContent = best.name;
+    document.getElementById('sWorst').textContent = fmt(worst.edge);
+    document.getElementById('sWorst').className = 'value '+(worst.edge>=0?'positive':'negative');
+    document.getElementById('sWorstN').textContent = worst.name;
+    document.getElementById('sPos').textContent = pos;
+    document.getElementById('sNeg').textContent = neg;
+    document.getElementById('sMed').textContent = fmt(med);
+    document.getElementById('sMed').className = 'value '+(med>0?'positive':med<0?'negative':'neutral');
+    document.getElementById('sCount').textContent = data.length;
+    document.getElementById('sCountLabel').textContent = `of ${DATA.length}`;
+}
+
+// ── RENDER CHART ──
+function render() {
+    const data = filtered();
+    updateStats(data);
+
+    const rev = [...data].reverse();
+    const labels = rev.map(d => d.name);
+    const values = rev.map(d => d.edge);
+    const colors = rev.map(d => edgeColor(d.edge));
+    const customdata = rev.map(d => d); // for hover lookup
+
+    // Compute bar height based on count to fit screen
+    const chartEl = document.getElementById('mainChart');
+    const availH = chartEl.parentElement.clientHeight;
+    const barH = Math.max(8, Math.min(22, (availH - 80) / data.length));
+
+    const trace = {
+        type: 'bar',
+        orientation: 'h',
+        y: labels,
+        x: values,
+        customdata: customdata,
+        marker: {
+            color: colors,
+            line: { color: 'rgba(255,255,255,0.05)', width: 0.3 }
+        },
+        hoverinfo: 'skip',
+        hoverlabel: { bgcolor: 'rgba(0,0,0,0)' }
+    };
+
+    const layout = {
+        height: Math.max(400, data.length * barH + 80),
+        paper_bgcolor: '#0a0e17',
+        plot_bgcolor: '#0a0e17',
+        font: { family: 'Segoe UI, system-ui, sans-serif', color: '#667788', size: 10 },
+        margin: { l: 240, r: 50, t: 10, b: 40 },
+        xaxis: {
+            title: { text: 'Edge (%)', font: { size: 11, color: '#556677' } },
+            gridcolor: '#151e30',
+            zerolinecolor: '#facc15',
+            zerolinewidth: 2.5,
+            tickformat: '+.0f',
+            ticksuffix: '%',
+            range: [Math.min(-75, Math.min(...values)-3), Math.max(50, Math.max(...values)+3)],
+            dtick: 10,
+            tickfont: { size: 10 }
+        },
+        yaxis: {
+            tickfont: { size: barH < 14 ? 8 : 9.5 },
+            automargin: true
+        },
+        shapes: [{
+            type: 'line',
+            x0: 0, x1: 0,
+            y0: -0.5, y1: data.length - 0.5,
+            line: { color: '#facc15', width: 2, dash: 'dot' }
+        }],
+        annotations: [
+            { x: 25, y: data.length - 0.5, xanchor:'center', yanchor:'bottom', text:'PLAYER EDGE \u2192', showarrow:false, font:{color:'#4ade8088',size:10} },
+            { x: -35, y: data.length - 0.5, xanchor:'center', yanchor:'bottom', text:'\u2190 HOUSE EDGE', showarrow:false, font:{color:'#f8717188',size:10} }
+        ],
+        showlegend: false,
+        bargap: 0.08
+    };
+
+    const config = {
+        displayModeBar: false,
+        responsive: true,
+        scrollZoom: true
+    };
+
+    Plotly.newPlot('mainChart', [trace], layout, config);
+
+    // Attach custom hover via plotly events
+    const plotEl = document.getElementById('mainChart');
+    plotEl.on('plotly_hover', function(evtData) {
+        const pt = evtData.points[0];
+        const d = pt.customdata;
+        // Get mouse position from plotly event
+        const rect = plotEl.getBoundingClientRect();
+        const mouseEvt = { clientX: evtData.event.clientX || (rect.left + pt.xaxis.l2p(pt.x)), clientY: evtData.event.clientY || (rect.top + pt.yaxis.l2p(pt.y)) };
+        showTooltip(d, mouseEvt);
+    });
+
+    plotEl.on('plotly_unhover', hideTooltip);
+
+    // Also track mouse for smooth tooltip positioning
+    plotEl.addEventListener('mousemove', function(e) {
+        if (ttEl.style.display === 'block') positionTooltip(e);
+    });
+}
+
+// ── EVENT LISTENERS ──
+document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filter = btn.dataset.filter;
+        render();
+    });
+});
+
+document.querySelectorAll('.filter-btn[data-sort]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn[data-sort]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        sortMode = btn.dataset.sort;
+        render();
+    });
+});
+
+// Rerender on resize
+window.addEventListener('resize', render);
+
+// ── INIT ──
+render();
+</script>
+</body>
+</html>
