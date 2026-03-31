@@ -186,6 +186,7 @@
             <div class="dd-item toggle on" data-f="Cryptocurrency"><span class="dot" style="background:#f59e0b"></span>Crypto</div>
             <div class="dd-item toggle on" data-f="Collectibles"><span class="dot" style="background:#d97706"></span>Collectibles</div>
             <div class="dd-item toggle on" data-f="Precious Metals"><span class="dot" style="background:#fbbf24"></span>Metals</div>
+            <div class="dd-item toggle on" data-f="Insurance & Annuities"><span class="dot" style="background:#ec4899"></span>Insurance</div>
             <div class="dd-item toggle on" data-f="Sports Betting"><span class="dot" style="background:#22c55e"></span>Sports</div>
             <div class="dd-item toggle" data-f="Casino Gambling"><span class="dot" style="background:#a855f7"></span>Casino</div>
             <div class="dd-item toggle" data-f="Poker & Skill-Based"><span class="dot" style="background:#14b8a6"></span>Poker / DFS</div>
@@ -400,6 +401,19 @@ const RAW = [
   // PRECIOUS METALS — Tax-Adjusted
   {n:"Gold After Collectibles Tax (28%)",cat:"Precious Metals",g:"Tax Impact",m:"i",a:5.4,type:"Tax-Adjusted",vol:"Medium",wp:"~62% of years",sk:"IRS taxes physical metals at 28% collectibles rate",ly:"tax"},
   {n:"Gold Mining After LTCG Tax (20%)",cat:"Precious Metals",g:"Tax Impact",m:"i",a:4.0,type:"Tax-Adjusted",vol:"High",wp:"~55% of years",sk:"Mining stocks taxed at standard 20% LTCG",ly:"tax"},
+  // ─── INSURANCE & ANNUITIES ───
+  {n:"Variable Annuity (Equity Sub-Accounts)",cat:"Insurance & Annuities",g:"Annuities",m:"i",a:5.0,type:"Variable Annuity",vol:"Med-High",wp:"~65% of years",sk:"None — market-linked minus ~3% fees",ly:"raw"},
+  {n:"Indexed Universal Life (IUL)",cat:"Insurance & Annuities",g:"Life Insurance",m:"i",a:4.5,type:"Permanent Life",vol:"Low-Med",wp:"~70% of years",sk:"None — capped upside, 0% floor",ly:"raw"},
+  {n:"Fixed Annuity (MYGA 5-Year)",cat:"Insurance & Annuities",g:"Annuities",m:"i",a:4.2,type:"Fixed Annuity",vol:"None",wp:"~100% (guaranteed)",sk:"None — locked rate, surrender charges",ly:"raw"},
+  {n:"Single Premium Immediate Annuity (SPIA)",cat:"Insurance & Annuities",g:"Annuities",m:"i",a:4.0,type:"Immediate Annuity",vol:"None",wp:"Depends on longevity",sk:"None — mortality credits boost yield",ly:"raw"},
+  {n:"Whole Life — Top Mutual Co. (NWM/MassMutual)",cat:"Insurance & Annuities",g:"Life Insurance",m:"i",a:3.5,type:"Permanent Life",vol:"None",wp:"~100% (guaranteed + dividends)",sk:"None — 20+ yr horizon for positive IRR",ly:"raw"},
+  {n:"Fixed Indexed Annuity (FIA)",cat:"Insurance & Annuities",g:"Annuities",m:"i",a:3.5,type:"Indexed Annuity",vol:"Low",wp:"~80% of years",sk:"None — participation rates cap upside",ly:"raw"},
+  {n:"Universal Life (Current Rate)",cat:"Insurance & Annuities",g:"Life Insurance",m:"i",a:3.0,type:"Permanent Life",vol:"Low",wp:"~100% (credited rate)",sk:"None — rate not guaranteed long-term",ly:"raw"},
+  {n:"Variable Universal Life (VUL After Fees)",cat:"Insurance & Annuities",g:"Life Insurance",m:"i",a:3.0,type:"Permanent Life",vol:"Med-High",wp:"~60% of years",sk:"None — highest insurance + fund fees",ly:"raw"},
+  {n:"Whole Life — Average Company",cat:"Insurance & Annuities",g:"Life Insurance",m:"i",a:2.0,type:"Permanent Life",vol:"None",wp:"~100% (guaranteed)",sk:"None — slow CSV growth, high surrender charges",ly:"raw"},
+  // INSURANCE — Tax-Adjusted
+  {n:"Annuity Gains After Ordinary Income Tax (37%)",cat:"Insurance & Annuities",g:"Tax Impact",m:"i",a:2.65,type:"Tax-Adjusted",vol:"None",wp:"~100%",sk:"Annuity gains taxed as ordinary income, no LTCG benefit",ly:"tax"},
+  {n:"Whole Life Cash Value (Tax-Free via Policy Loans)",cat:"Insurance & Annuities",g:"Tax Impact",m:"i",a:3.5,type:"Tax-Adjusted",vol:"None",wp:"~100%",sk:"Access via loans = tax-free, effective after-tax equivalent",ly:"tax"},
   // ─── SPORTS ───
   {n:"Single Game Spread (-110)",cat:"Sports Betting",g:"Straight Bets",m:"g",e:-4.55,du:2,ced:3,type:"Straight Bet",vol:"Binary",wp:"47.6% to break even",sk:"Medium",ly:"raw"},
   {n:"Single Game O/U (-110)",cat:"Sports Betting",g:"Straight Bets",m:"g",e:-4.55,du:2,ced:3,type:"Straight Bet",vol:"Binary",wp:"47.6% to break even",sk:"Medium",ly:"raw"},
@@ -482,6 +496,7 @@ const RAW = [
 const CC = {
     "Cash & Savings":"#34d399","Stock Market":"#3b82f6","Bonds":"#06b6d4","Real Estate":"#8b5cf6",
     "Cryptocurrency":"#f59e0b","Collectibles":"#d97706","Precious Metals":"#fbbf24",
+    "Insurance & Annuities":"#ec4899",
     "Sports Betting":"#22c55e","Casino Gambling":"#a855f7",
     "Poker & Skill-Based":"#14b8a6","Prediction Markets":"#6366f1",
     "Lottery":"#f43f5e"
@@ -494,7 +509,7 @@ const CC = {
 // ══════════════════════════
 const AR_DEFAULT = {
     "Cash & Savings":1,"Stock Market":1,"Bonds":1,"Real Estate":1,"Cryptocurrency":3,
-    "Collectibles":1,"Precious Metals":1,
+    "Collectibles":1,"Precious Metals":1,"Insurance & Annuities":1,
     "Sports Betting":4,"Casino Gambling":3,"Poker & Skill-Based":3,
     "Prediction Markets":2,"Lottery":3
 };
@@ -567,7 +582,7 @@ function rc(pct) {
 // ══════════════════════════
 // STATE
 // ══════════════════════════
-const ALL_CATS = ["Cash & Savings","Stock Market","Bonds","Real Estate","Cryptocurrency","Collectibles","Precious Metals","Sports Betting","Casino Gambling","Poker & Skill-Based","Prediction Markets","Lottery"];
+const ALL_CATS = ["Cash & Savings","Stock Market","Bonds","Real Estate","Cryptocurrency","Collectibles","Precious Metals","Insurance & Annuities","Sports Betting","Casino Gambling","Poker & Skill-Based","Prediction Markets","Lottery"];
 const EXCLUDED_DEFAULT = ["Casino Gambling","Poker & Skill-Based"];
 const DEFAULT_CATS = ALL_CATS.filter(c => !EXCLUDED_DEFAULT.includes(c));
 let catSet = new Set(DEFAULT_CATS);
@@ -956,7 +971,7 @@ document.addEventListener('click', () => document.querySelectorAll('.dd.open').f
 // Category dropdown (multi-select)
 const catDD = document.getElementById('catDD');
 const catBtn = document.getElementById('catBtn');
-const CAT_LABELS = {"Cash & Savings":"Cash / Savings","Stock Market":"Stocks","Bonds":"Bonds","Real Estate":"Real Estate","Cryptocurrency":"Crypto","Collectibles":"Collectibles","Precious Metals":"Metals","Sports Betting":"Sports","Casino Gambling":"Casino","Poker & Skill-Based":"Poker / DFS","Prediction Markets":"Predictions","Lottery":"Lottery"};
+const CAT_LABELS = {"Cash & Savings":"Cash / Savings","Stock Market":"Stocks","Bonds":"Bonds","Real Estate":"Real Estate","Cryptocurrency":"Crypto","Collectibles":"Collectibles","Precious Metals":"Metals","Insurance & Annuities":"Insurance","Sports Betting":"Sports","Casino Gambling":"Casino","Poker & Skill-Based":"Poker / DFS","Prediction Markets":"Predictions","Lottery":"Lottery"};
 const catItems = catDD.querySelectorAll('.dd-item.toggle[data-f]');
 const catAllItem = catDD.querySelector('.cat-all');
 
