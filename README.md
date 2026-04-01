@@ -41,6 +41,7 @@
 <td width="33%" align="center">
 
 **Light Vertical Theme**
+![Dark Sidebar Theme](Screenshots/App/Light_Theme.png)
 `Versions/Light-Vertical-Theme/V2.html`
 
 </td>
