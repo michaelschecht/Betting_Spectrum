@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/DATA_POINTS-167+-2ea44f?style=for-the-badge" alt="Data Points">
+  <img src="https://img.shields.io/badge/DATA_POINTS-187-2ea44f?style=for-the-badge" alt="Data Points">
   <img src="https://img.shields.io/badge/CATEGORIES-13-0078D4?style=for-the-badge" alt="Categories">
   <img src="https://img.shields.io/badge/TIME_HORIZONS-7-8B5CF6?style=for-the-badge" alt="Time Horizons">
-  <img src="https://img.shields.io/badge/PLOTLY.JS-2.32.0-F97316?style=for-the-badge&logo=plotly&logoColor=white" alt="Plotly.js">
-  <img src="https://img.shields.io/badge/ZERO_DEPS-Vanilla_JS-6B7280?style=for-the-badge&logo=javascript&logoColor=white" alt="Vanilla JS">
+  <img src="https://img.shields.io/badge/PLOTLY-2.32+-F97316?style=for-the-badge&logo=plotly&logoColor=white" alt="Plotly">
+  <img src="https://img.shields.io/badge/STREAMLIT-Deployed-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit">
 </p>
 
 <h1 align="center">The Edge Spectrum</h1>
@@ -53,7 +53,7 @@
 ## 🚀 Quick Start
 
 ```bash
-# No install, no build — just open in any modern browser
+# Standalone HTML — no install, just open in any modern browser
 ```
 
 1. **Original Theme** — Open `Versions/Original-Theme/V18.html`
@@ -63,8 +63,15 @@
 5. Use the **Time Horizon** buttons to switch periods (1 Bet → 10 Years)
 6. **Hover** any bar for a detailed breakdown and peer comparison
 
+```bash
+# Streamlit app — Python web app, deploys to Streamlit Cloud
+cd Versions/Streamlit
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
+
 > [!NOTE]
-> All charts are standalone HTML files. The only external dependency is Plotly.js loaded from CDN (internet connection required on first load).
+> The HTML versions are standalone (Plotly.js from CDN). The Streamlit version is a Python port of the Dark-Sidebar-Theme deployable to [share.streamlit.io](https://share.streamlit.io/) — see `Versions/Streamlit/README.md`.
 
 ---
 
@@ -123,7 +130,7 @@ Betting_Spectrum/
 │   ├── edge_analysis10.md         ← DU/CED standardization
 │   ├── edge_analysis9.md          ← Complete 180-point dataset
 │   └── Legacy/                    ← Archived V1–V8 data
-├── Versions/                      ← Interactive HTML charts
+├── Versions/                      ← Interactive HTML charts + Streamlit app
 │   ├── Original-Theme/
 │   │   └── V18.html               ← Latest original zinc theme
 │   ├── Dark-Sidebar-Theme/
@@ -131,6 +138,12 @@ Betting_Spectrum/
 │   ├── Light-Vertical-Theme/
 │   │   ├── V1.html                ← V20: Light blue, vertical bars
 │   │   └── V2.html                ← V21: Centered, hover-only labels
+│   ├── Streamlit/                 ← Python port of V19, deployed to Streamlit Cloud
+│   │   ├── streamlit_app.py       ← UI + chart logic
+│   │   ├── data.py                ← 187-row dataset (Python mirror of HTML RAW array)
+│   │   ├── requirements.txt
+│   │   ├── README.md              ← Local + deploy instructions
+│   │   └── .streamlit/config.toml ← Dark theme palette
 │   └── Legacy/                    ← Archived V11–V17
 ├── Docs/                          ← Changelog, ideas, analysis
 │   ├── change_log.md
@@ -150,8 +163,9 @@ Betting_Spectrum/
 | **Dark Sidebar** | V19 (V1) | Left sidebar navigation | Near-black with indigo accents |
 | **Light Vertical** | V20 (V1) | Top control bar, horizontal bars | Light blue, full-width scrollable |
 | **Light Vertical Centered** | V21 (V2) | Top control bar, centered chart | Light blue, hover-only labels, no y-axis text |
+| **Streamlit (Python)** | V19 port | Streamlit sidebar + main canvas | Dark theme, hosted on Streamlit Community Cloud |
 
-Each theme has its own subfolder under `Versions/` with independent version numbering.
+Each theme has its own subfolder under `Versions/` with independent version numbering. The Streamlit port mirrors V19 (Dark-Sidebar-Theme) but is written in Python — see [Maintenance](#-maintenance--keeping-versions-in-sync) below for sync rules.
 
 ---
 
@@ -238,6 +252,38 @@ This preserves a full history — any previous version can be opened and compare
 
 ---
 
+## 🔄 Maintenance — Keeping Versions in Sync
+
+> [!IMPORTANT]
+> **For agents and contributors:** the Streamlit app at `Versions/Streamlit/` is a live-deployed Python port of V19 (Dark-Sidebar-Theme). When you make data or feature changes, you must propagate them to the Streamlit version **in parallel** — it is the only deployed/hosted artifact and will silently drift if forgotten.
+
+### When to update `Versions/Streamlit/`
+
+| If you change... | Then also update... | Why |
+|:-----------------|:--------------------|:----|
+| The `RAW` array in any new HTML version (add/remove/edit a row) | `Versions/Streamlit/data.py` — `RAW` list | Keeps the deployed app's dataset accurate |
+| `ALL_CATS`, `CC` (category colors), `HZ_DAYS`, `I_Y`, `AR_DEFAULT` constants | Same constants in `Versions/Streamlit/data.py` | Ensures math + theming match |
+| Sidebar filters, time horizons, projection layers | `Versions/Streamlit/streamlit_app.py` (sidebar block + `filter_data`) | Mirrors UX across HTML and Streamlit |
+| Math formulas (`gambRet`, `invRet`) | `gamb_ret` / `inv_ret` in `streamlit_app.py` | Keeps numbers identical across versions |
+| Hover/tooltip content fields | `customdata` and `hover` template in `streamlit_app.py` | Streamlit uses Plotly's hovertemplate, not the HTML floating card |
+
+### Sync workflow
+
+1. Make the HTML version change first (e.g., new `V20.html` in `Dark-Sidebar-Theme/`)
+2. Mirror the same change in `Versions/Streamlit/data.py` and/or `streamlit_app.py`
+3. Smoke test: `cd Versions/Streamlit && python -c "from data import RAW; print(len(RAW))"`
+4. Commit both changes in the same commit so the deployed app stays in lockstep with the source HTML
+5. Push to `master` — Streamlit Community Cloud auto-redeploys within ~30 seconds
+
+### What's intentionally different in the Streamlit version
+
+- Custom dropdowns/pills replaced with native `st.multiselect` / `st.radio` / `st.checkbox`
+- Floating 420px tooltip card replaced with Plotly's `hovertemplate` panel
+- DCA / Addiction Risk / Ruin Probability toggles extend the hover panel rather than overlay traces
+- These differences are **deliberate** and should not be "fixed" by porting the HTML chrome verbatim — Streamlit has its own UX conventions
+
+---
+
 ## 🛠 Tech Stack
 
 <p>
@@ -245,12 +291,14 @@ This preserves a full history — any previous version can be opened and compare
   <img src="https://img.shields.io/badge/HTML-Standalone-E34F26?style=flat-square&logo=html5&logoColor=white" alt="HTML">
   <img src="https://img.shields.io/badge/CSS-Custom_Properties-1572B6?style=flat-square&logo=css3&logoColor=white" alt="CSS">
   <img src="https://img.shields.io/badge/JavaScript-Vanilla_ES6-F7DF1E?style=flat-square&logo=javascript&logoColor=black" alt="JavaScript">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Streamlit-1.37+-FF4B4B?style=flat-square&logo=streamlit&logoColor=white" alt="Streamlit">
   <img src="https://img.shields.io/badge/Data-Markdown_Tables-000000?style=flat-square&logo=markdown&logoColor=white" alt="Markdown">
 </p>
 
-- **Zero build step** — open any `.html` file directly in a browser
-- **No npm, no bundler, no framework** — pure HTML/CSS/JS
-- **All data is human-readable** — Markdown tables in `Data/`
+- **HTML versions:** Zero build step — open any `.html` file directly in a browser. No npm, no bundler.
+- **Streamlit version:** Python (`streamlit + plotly + pandas`) — deployable to Streamlit Community Cloud.
+- **All data is human-readable** — Markdown tables in `Data/`, Python list in `Versions/Streamlit/data.py`.
 
 ---
 
