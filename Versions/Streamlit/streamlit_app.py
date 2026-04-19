@@ -148,8 +148,9 @@ section[data-testid="stSidebar"] h3 {
     letter-spacing: 0.1em; margin-top: 1rem;
 }
 
-/* Hide Streamlit chrome */
-#MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; height: 0; }
+/* Hide Streamlit chrome — keep header transparent so sidebar toggle stays usable */
+#MainMenu, footer { visibility: hidden; height: 0; }
+header[data-testid="stHeader"] { background: transparent; }
 </style>
 """, unsafe_allow_html=True)
 
