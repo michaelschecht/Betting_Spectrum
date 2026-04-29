@@ -1,4 +1,5 @@
 <p align="center">
+  <a href="https://michaelschecht.github.io/Betting_Spectrum/"><img src="https://img.shields.io/badge/LIVE_DEMO-michaelschecht.github.io-22c55e?style=for-the-badge&logo=github&logoColor=white" alt="Live Demo"></a>
   <img src="https://img.shields.io/badge/DATA_POINTS-187-2ea44f?style=for-the-badge" alt="Data Points">
   <img src="https://img.shields.io/badge/CATEGORIES-13-0078D4?style=for-the-badge" alt="Categories">
   <img src="https://img.shields.io/badge/TIME_HORIZONS-7-8B5CF6?style=for-the-badge" alt="Time Horizons">
@@ -10,12 +11,16 @@
 
 <p align="center">
   <b>Who Really Wins?</b><br>
-  <sub>An interactive visualization comparing expected cumulative returns of 167+ financial activities<br>
+  <sub>An interactive visualization comparing expected cumulative returns of 187 financial activities<br>
   — from index fund investing to casino gambling to lottery tickets — across 7 time horizons.</sub>
 </p>
 
 <p align="center">
   Every bar answers one question: <i>if you repeat this activity, does the math work for you or against you?</i>
+</p>
+
+<p align="center">
+  <b>▶ Try it live: <a href="https://michaelschecht.github.io/Betting_Spectrum/">michaelschecht.github.io/Betting_Spectrum</a></b>
 </p>
 
 ---
@@ -33,9 +38,9 @@
 </td>
 <td width="33%" align="center">
 
-**Dark Sidebar Theme**
-![Dark Sidebar Theme](Screenshots/App/Dark_Sidebar_Theme.png)
-`Versions/Dark-Sidebar-Theme/V1.html`
+**Dark Sidebar Theme** *(live)*
+[![Dark Sidebar Theme](Screenshots/App/Dark_Sidebar_Theme.png)](https://michaelschecht.github.io/Betting_Spectrum/)
+`index.html` → [hosted on GitHub Pages](https://michaelschecht.github.io/Betting_Spectrum/)
 
 </td>
 <td width="33%" align="center">
@@ -52,13 +57,13 @@
 
 ## 🚀 Quick Start
 
-```bash
-# Standalone HTML — no install, just open in any modern browser
-```
+**Hosted (no install):** [michaelschecht.github.io/Betting_Spectrum](https://michaelschecht.github.io/Betting_Spectrum/) — opens the Dark Sidebar dashboard directly.
 
-1. **Original Theme** — Open `Versions/Original-Theme/V18.html`
-2. **Dark Sidebar** — Open `Versions/Dark-Sidebar-Theme/V1.html`
-3. **Light Vertical** — Open `Versions/Light-Vertical-Theme/V2.html`
+**Local HTML — no install, just open in any modern browser:**
+
+1. **Dark Sidebar (current)** — open `index.html`
+2. **Original Theme** — open `Versions/Original-Theme/V18.html`
+3. **Light Vertical** — open `Versions/Light-Vertical-Theme/V2.html`
 4. Use the **Category** dropdown to filter by activity type
 5. Use the **Time Horizon** buttons to switch periods (1 Bet → 10 Years)
 6. **Hover** any bar for a detailed breakdown and peer comparison
@@ -124,48 +129,52 @@ Each activity is assigned a **per-event edge** — the percentage advantage or d
 ```
 Betting_Spectrum/
 ├── README.md
+├── index.html                     ← Live dashboard (V19 Dark Sidebar) — served by GitHub Pages
+├── .nojekyll                      ← Tells Pages to skip Jekyll and serve files as-is
 ├── Data/                          ← Raw edge data (Markdown tables)
 │   ├── edge_analysis12.md         ← Current: 166 pts, 11 cats, DU/CED framework
 │   ├── edge_analysis11.md         ← Streamlined 156 entries
 │   ├── edge_analysis10.md         ← DU/CED standardization
 │   ├── edge_analysis9.md          ← Complete 180-point dataset
 │   └── Legacy/                    ← Archived V1–V8 data
-├── Versions/                      ← Interactive HTML charts + Streamlit app
+├── Versions/                      ← Alternate themes + Streamlit port
 │   ├── Original-Theme/
-│   │   └── V18.html               ← Latest original zinc theme
-│   ├── Dark-Sidebar-Theme/
-│   │   └── V1.html                ← V19: Sidebar navigation redesign
+│   │   ├── V18.html               ← Latest original zinc theme
+│   │   └── Legacy/                ← Archived V11–V18 originals
 │   ├── Light-Vertical-Theme/
 │   │   ├── V1.html                ← V20: Light blue, vertical bars
 │   │   └── V2.html                ← V21: Centered, hover-only labels
-│   ├── Streamlit/                 ← Python port of V19, deployed to Streamlit Cloud
-│   │   ├── streamlit_app.py       ← UI + chart logic
-│   │   ├── data.py                ← 187-row dataset (Python mirror of HTML RAW array)
-│   │   ├── requirements.txt
-│   │   ├── README.md              ← Local + deploy instructions
-│   │   └── .streamlit/config.toml ← Dark theme palette
-│   └── Legacy/                    ← Archived V11–V17
+│   └── Streamlit/                 ← Python port of V19, deployed to Streamlit Cloud
+│       ├── streamlit_app.py       ← UI + chart logic
+│       ├── data.py                ← 187-row dataset (Python mirror of HTML RAW array)
+│       ├── requirements.txt
+│       ├── README.md              ← Local + deploy instructions
+│       └── .streamlit/config.toml ← Dark theme palette
 ├── Docs/                          ← Changelog, ideas, analysis
 │   ├── change_log.md
 │   ├── improvement_ideas.md
-│   └── GPT_Analysis/
+│   ├── edge_standardization_analysis.md
+│   └── GPT_Analysis/              ← Reference analysis + standardized model spreadsheet
 └── Screenshots/
-    └── App/
+    └── App/                       ← Theme screenshots used in this README
 ```
+
+> [!NOTE]
+> `index.html` was promoted from `Versions/Dark-Sidebar-Theme/V1.html` so the bare GitHub Pages URL serves the current dashboard. The Dark-Sidebar-Theme folder no longer exists — the canonical V19 source is at the repo root.
 
 ---
 
 ## 🎨 Theme Variants
 
-| Theme | Version | Layout | Style |
-|:------|:--------|:-------|:------|
-| **Original** | V18 | Horizontal control bar, vertical bars | Dark zinc palette, frosted-glass tooltips |
-| **Dark Sidebar** | V19 (V1) | Left sidebar navigation | Near-black with indigo accents |
-| **Light Vertical** | V20 (V1) | Top control bar, horizontal bars | Light blue, full-width scrollable |
-| **Light Vertical Centered** | V21 (V2) | Top control bar, centered chart | Light blue, hover-only labels, no y-axis text |
-| **Streamlit (Python)** | V19 port | Streamlit sidebar + main canvas | Dark theme, hosted on Streamlit Community Cloud |
+| Theme | Version | Path | Layout | Style |
+|:------|:--------|:-----|:-------|:------|
+| **Dark Sidebar** *(live)* | V19 | `index.html` | Left sidebar navigation | Near-black with indigo accents — hosted on GitHub Pages |
+| **Original** | V18 | `Versions/Original-Theme/V18.html` | Horizontal control bar, vertical bars | Dark zinc palette, frosted-glass tooltips |
+| **Light Vertical** | V20 | `Versions/Light-Vertical-Theme/V1.html` | Top control bar, horizontal bars | Light blue, full-width scrollable |
+| **Light Vertical Centered** | V21 | `Versions/Light-Vertical-Theme/V2.html` | Top control bar, centered chart | Light blue, hover-only labels, no y-axis text |
+| **Streamlit (Python)** | V19 port | `Versions/Streamlit/` | Streamlit sidebar + main canvas | Dark theme, hosted on Streamlit Community Cloud |
 
-Each theme has its own subfolder under `Versions/` with independent version numbering. The Streamlit port mirrors V19 (Dark-Sidebar-Theme) but is written in Python — see [Maintenance](#-maintenance--keeping-versions-in-sync) below for sync rules.
+The Dark Sidebar (V19) is the canonical published version — it lives at the repo root as `index.html` so GitHub Pages serves it at the bare URL. The other themes remain in `Versions/` for reference and are still reachable at `https://michaelschecht.github.io/Betting_Spectrum/Versions/<theme>/<file>.html`. The Streamlit port mirrors V19 in Python — see [Maintenance](#-maintenance--keeping-versions-in-sync) below for sync rules.
 
 ---
 
@@ -173,8 +182,9 @@ Each theme has its own subfolder under `Versions/` with independent version numb
 
 | Category | Model | Edge Range |
 |:---------|:------|:-----------|
+| Cash & Savings | Compound | +4.8% to +0.01% annual |
 | Stock Market | Compound | +12.5% to -30% annual |
-| Bond Market | Compound | +5.5% to +1.5% annual |
+| Bonds | Compound | +5.5% to +1.5% annual |
 | Real Estate | Compound | +10% to -12% annual |
 | Cryptocurrency | Compound | +45% to -70% annual |
 | Precious Metals | Compound | +7.5% to +1.0% annual |
@@ -184,7 +194,7 @@ Each theme has its own subfolder under `Versions/` with independent version numb
 | Casino Gambling | Linear | -0.46% to -35% per bet |
 | Poker & Skill-Based | Linear | +5% to -20% per bet |
 | Prediction Markets | Linear | -3% to -10% per bet |
-| Lottery & Scratch-Offs | Linear | -25% to -55% per bet |
+| Lottery | Linear | -25% to -55% per bet |
 
 ---
 
@@ -221,7 +231,7 @@ Each theme has its own subfolder under `Versions/` with independent version numb
 | Version | Key Changes |
 |:--------|:------------|
 | **V18** | Latest original zinc theme. 167 data points, Precious Metals added. |
-| **V19** | Dark sidebar layout redesign with indigo accents. |
+| **V19** *(live)* | Dark sidebar layout redesign with indigo accents — published at `index.html` / GitHub Pages. |
 | **V20** | Light blue vertical theme. Horizontal bars, top control bar, scrollable. |
 | **V21** | Centered chart. Y-axis labels removed — name + value shown on bar + hover tooltip. |
 | **V17** | Precious Metals category (11 categories, ~167 data points). |
@@ -255,7 +265,7 @@ This preserves a full history — any previous version can be opened and compare
 ## 🔄 Maintenance — Keeping Versions in Sync
 
 > [!IMPORTANT]
-> **For agents and contributors:** the Streamlit app at `Versions/Streamlit/` is a live-deployed Python port of V19 (Dark-Sidebar-Theme). When you make data or feature changes, you must propagate them to the Streamlit version **in parallel** — it is the only deployed/hosted artifact and will silently drift if forgotten.
+> **For agents and contributors:** there are two live-deployed artifacts of V19 — `index.html` at the repo root (GitHub Pages) and the Streamlit port at `Versions/Streamlit/` (Streamlit Community Cloud). When you change data or features in one, propagate the change to the other in the same commit — both will silently drift if forgotten.
 
 ### When to update `Versions/Streamlit/`
 
@@ -269,11 +279,11 @@ This preserves a full history — any previous version can be opened and compare
 
 ### Sync workflow
 
-1. Make the HTML version change first (e.g., new `V20.html` in `Dark-Sidebar-Theme/`)
+1. Make the HTML change first in `index.html` (the live Pages dashboard)
 2. Mirror the same change in `Versions/Streamlit/data.py` and/or `streamlit_app.py`
 3. Smoke test: `cd Versions/Streamlit && python -c "from data import RAW; print(len(RAW))"`
-4. Commit both changes in the same commit so the deployed app stays in lockstep with the source HTML
-5. Push to `master` — Streamlit Community Cloud auto-redeploys within ~30 seconds
+4. Commit both changes in the same commit so the two deployed apps stay in lockstep
+5. Push to `master` — GitHub Pages rebuilds in ~30s, Streamlit Community Cloud auto-redeploys in ~30s
 
 ### What's intentionally different in the Streamlit version
 
