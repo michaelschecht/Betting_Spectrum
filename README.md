@@ -1,26 +1,39 @@
-<p align="center">
-  <a href="https://michaelschecht.github.io/Betting_Spectrum/"><img src="https://img.shields.io/badge/LIVE_DEMO-michaelschecht.github.io-22c55e?style=for-the-badge&logo=github&logoColor=white" alt="Live Demo"></a>
-  <img src="https://img.shields.io/badge/DATA_POINTS-187-2ea44f?style=for-the-badge" alt="Data Points">
-  <img src="https://img.shields.io/badge/CATEGORIES-13-0078D4?style=for-the-badge" alt="Categories">
-  <img src="https://img.shields.io/badge/TIME_HORIZONS-7-8B5CF6?style=for-the-badge" alt="Time Horizons">
-  <img src="https://img.shields.io/badge/PLOTLY-2.32+-F97316?style=for-the-badge&logo=plotly&logoColor=white" alt="Plotly">
-  <img src="https://img.shields.io/badge/STREAMLIT-Deployed-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit">
-</p>
-
-<h1 align="center">The Edge Spectrum</h1>
+<a id="readme-top"></a>
 
 <p align="center">
-  <b>Who Really Wins?</b><br>
-  <sub>An interactive visualization comparing expected cumulative returns of 187 financial activities<br>
-  — from index fund investing to casino gambling to lottery tickets — across 7 time horizons.</sub>
+  <a href="https://edge-spectrum.mikesailab.com">
+    <img src="Images/Betting-Spectrum-Images/logos/dark/landscape-01-edge-gradient.svg" alt="The Edge Spectrum - expected returns across activities and time horizons" width="720">
+  </a>
 </p>
 
 <p align="center">
-  Every bar answers one question: <i>if you repeat this activity, does the math work for you or against you?</i>
+  <em>Who really wins? Compare expected cumulative returns<br>across investing, trading, betting, casino, and lottery activities.</em>
 </p>
 
 <p align="center">
-  <b>▶ Try it live: <a href="https://michaelschecht.github.io/Betting_Spectrum/">michaelschecht.github.io/Betting_Spectrum</a></b>
+  <a href="Docs/change_log.md"><strong>Explore the docs »</strong></a>
+</p>
+
+<p align="center">
+  <a href="https://edge-spectrum.mikesailab.com">View Demo</a>
+  ·
+  <a href="https://github.com/michaelschecht/Betting_Spectrum/issues">Report Bug</a>
+  ·
+  <a href="https://github.com/michaelschecht/Betting_Spectrum/issues">Request Feature</a>
+</p>
+
+<p align="center">
+  <a href="https://edge-spectrum.mikesailab.com"><img src="https://img.shields.io/badge/Live_Demo-edge--spectrum.mikesailab.com-38bdf8?style=for-the-badge&logo=githubpages&logoColor=white" alt="Live Demo"></a>
+  <img src="https://img.shields.io/badge/data_points-187-2ea44f?style=for-the-badge" alt="187 data points">
+  <a href="Docs/improvement_ideas.md"><img src="https://img.shields.io/badge/plan-IDEAS-8B5CF6?style=for-the-badge" alt="Improvement ideas"></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Plotly.js-2.32+-3F4F75?style=flat-square&logo=plotly&logoColor=white" alt="Plotly.js 2.32+">
+  <img src="https://img.shields.io/badge/HTML-standalone-E34F26?style=flat-square&logo=html5&logoColor=white" alt="Standalone HTML">
+  <img src="https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=black" alt="Vanilla JavaScript">
+  <img src="https://img.shields.io/badge/Streamlit-python_port-FF4B4B?style=flat-square&logo=streamlit&logoColor=white" alt="Streamlit Python port">
+  <img src="https://img.shields.io/badge/time_horizons-7-6366f1?style=flat-square" alt="7 time horizons">
 </p>
 
 ---
