@@ -78,6 +78,8 @@ edge-spectrum/
 │   └── tools.ts           # The Registry — SINGLE SOURCE OF TRUTH for all tools
 ├── Docs/                  # In-depth logs, standardized analysis, and future ideas
 ├── Data/                  # Current and legacy edge datasets
+├── Images/                # Logos, icons, and theme screenshots (including Screenshots/ folder)
+├── Versions/              # Legacy and alternate versions (Streamlit port, original themes)
 ├── server.ts              # Express local dev server (proxies/runs Vite + serverless local engines)
 ├── package.json           # Scripts & node dependencies
 └── vercel.json            # Vercel configuration (SPA routing overrides & API serverless mappings)

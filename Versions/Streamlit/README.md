@@ -49,4 +49,4 @@ Community Cloud auto-detects `requirements.txt` and `.streamlit/config.toml`.
 
 - Add DCA overlay as a second trace showing projected balance curve
 - Add Monte Carlo ruin simulation for gambling rows
-- Publish screenshots back to `Screenshots/` per project convention
+- Publish screenshots back to `Images/Screenshots/` per project convention
