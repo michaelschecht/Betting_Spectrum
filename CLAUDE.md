@@ -36,7 +36,7 @@ src/
   dataGenerator.ts, types.ts
 api/                # Vercel serverless: backtest.ts, espn-scoreboard.ts, strategy-advisor.ts
 public/spectrum/    # the original Edge Spectrum Plotly viz, served static at /spectrum/index.html
-Versions/ Data/ Docs/ Screenshots/   # preserved Edge Spectrum archives
+Versions/ Data/ Docs/ Images/   # preserved Edge Spectrum archives & screenshots
 ```
 
 ## Adding a new tool (the whole recipe)
