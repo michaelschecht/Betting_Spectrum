@@ -61,3 +61,7 @@ Versions/ Data/ Docs/ Screenshots/   # preserved Edge Spectrum archives
 - The static `public/spectrum/` page is self-contained (Plotly + fonts via CDN, data inlined) — leave it as-is;
   a future task may port it into a React route.
 - Local dev: `npm run dev` (binds `PORT`, default 3001). `npm run build` = `vite build` + esbuild-bundle `server.ts`.
+
+## Branch workflow (PR flow)
+
+Do **not** push directly to `main`. Work on `mike_desktop`, then open a **PR → `main`** (`gh pr create --base main --head mike_desktop`). Vercel builds a **preview deployment** for each PR — check that URL before merging. Merging to `main` deploys to production (`edge-spectrum.mikesailab.com`). Keep `mike_desktop` and `main` in sync after each merge (`git checkout mike_desktop && git merge main`).
