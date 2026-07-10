@@ -1,5 +1,12 @@
 <a id="readme-top"></a>
 
+> **⚠️ 2026-07-10 — this repo is now the _Edge Spectrum_ hub.** The Sports-Betting-Backtester app was
+> merged in and the site moved from GitHub Pages to **Vercel** (`edge-spectrum.mikesailab.com`). The
+> Edge Spectrum viz below is now served at **`/spectrum/`**, and the backtester lives at **`/backtester`**.
+> This README still describes the old single-page GitHub Pages layout and is pending a rewrite — see
+> `CLAUDE.md` for the current hub architecture and the "add a tool" recipe. Old
+> `michaelschecht.github.io/Betting_Spectrum/...` links no longer resolve.
+
 <p align="center">
   <a href="https://edge-spectrum.mikesailab.com">
     <img src="Images/Betting-Spectrum-Images/logos/dark/landscape-01-edge-gradient.svg" alt="The Edge Spectrum - expected returns across activities and time horizons" width="720">
@@ -17,9 +24,9 @@
 <p align="center">
   <a href="https://edge-spectrum.mikesailab.com">View Demo</a>
   ·
-  <a href="https://github.com/michaelschecht/Betting_Spectrum/issues">Report Bug</a>
+  <a href="https://github.com/michaelschecht/edge-spectrum/issues">Report Bug</a>
   ·
-  <a href="https://github.com/michaelschecht/Betting_Spectrum/issues">Request Feature</a>
+  <a href="https://github.com/michaelschecht/edge-spectrum/issues">Request Feature</a>
 </p>
 
 <p align="center">
