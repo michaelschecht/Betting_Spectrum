@@ -7,3 +7,7 @@ coverage/
 .env*
 !.env.example
 .vercel
+
+# Local agent tooling (not part of the app)
+.claude/
+.mcp.json

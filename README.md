@@ -65,25 +65,30 @@ Served inside the SPA React shell at `/backtester`.
 
 ```
 edge-spectrum/
-├── api/                   # Vercel serverless functions (backtest, ESPN, Gemini advisor)
-├── public/
-│   └── spectrum/          # The Edge Spectrum static Plotly visualization page
-├── src/
-│   ├── components/        # Backtester UI components (AiAdvisor, StrategyBuilder, ProfitChart, etc.)
-│   ├── pages/
-│   │   └── Home.tsx       # Landing page (dashboard tile grid mapping over tools.ts)
-│   ├── server/            # Shared backend engines (backtest, ESPN score, Gemini prompt engines)
-│   ├── App.tsx            # Main router shell & top-nav bar
-│   ├── main.tsx           # React bootstrap
-│   └── tools.ts           # The Registry — SINGLE SOURCE OF TRUTH for all tools
+├── site/                  # ← THE WEB APP (Vercel Root Directory = site)
+│   ├── api/               # Vercel serverless functions (backtest, ESPN, Gemini advisor)
+│   ├── public/
+│   │   ├── favicon.svg    # The served app icon
+│   │   └── spectrum/      # The Edge Spectrum static Plotly visualization page
+│   ├── src/
+│   │   ├── components/    # Backtester UI components (AiAdvisor, StrategyBuilder, ProfitChart, etc.)
+│   │   ├── pages/
+│   │   │   └── Home.tsx   # Landing page (dashboard tile grid mapping over tools.ts)
+│   │   ├── server/        # Shared backend engines (backtest, ESPN score, Gemini prompt engines)
+│   │   ├── App.tsx        # Main router shell & top-nav bar
+│   │   ├── main.tsx       # React bootstrap
+│   │   └── tools.ts       # The Registry — SINGLE SOURCE OF TRUTH for all tools
+│   ├── server.ts          # Express local dev server (proxies/runs Vite + serverless local engines)
+│   ├── package.json       # Scripts & node dependencies
+│   └── vercel.json        # Vercel configuration (SPA routing overrides & API serverless mappings)
 ├── Docs/                  # In-depth logs, standardized analysis, and future ideas
 ├── Data/                  # Current and legacy edge datasets
-├── Images/                # Logos, icons, and theme screenshots (including Screenshots/ folder)
-├── Versions/              # Legacy and alternate versions (Streamlit port, original themes)
-├── server.ts              # Express local dev server (proxies/runs Vite + serverless local engines)
-├── package.json           # Scripts & node dependencies
-└── vercel.json            # Vercel configuration (SPA routing overrides & API serverless mappings)
+├── Images/                # Logos, icons, screenshots, and favicon.svg (archived copy of the app icon)
+└── Versions/              # Legacy and alternate versions (Streamlit port, original themes)
 ```
+
+> **Note:** everything the site needs lives under `site/`; the repo root holds only docs and archives.
+> Run all app commands (`npm …`, `vercel …`) from inside `site/`.
 
 ---
 
@@ -94,13 +99,14 @@ edge-spectrum/
 - **Gemini API Key** (to enable the AI Advisor)
 
 ### 2. Installation
-Clone the repository and install the dependencies:
+Clone the repository, then install the dependencies from the `site/` directory (where the app lives):
 ```bash
+cd site
 npm install
 ```
 
 ### 3. Environment Setup
-Create a `.env` file in the root directory:
+Create a `.env` file inside `site/`:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 PORT=3001
@@ -124,7 +130,7 @@ npm start
 
 To add a new tool to the Edge Spectrum hub, follow the **three-step recipe**:
 
-1. **Register the Tool:** Add an entry to the `TOOLS` array in [tools.ts](file:///D:/AI_Agents/Projects/Mikes_AI_Lab/Repos/Live_Apps/edge-spectrum/src/tools.ts):
+1. **Register the Tool:** Add an entry to the `TOOLS` array in [tools.ts](file:///D:/AI_Agents/Projects/Mikes_AI_Lab/Repos/Live_Apps/edge-spectrum/site/src/tools.ts):
    ```typescript
    {
      slug: 'my-new-tool',
@@ -139,20 +145,21 @@ To add a new tool to the Edge Spectrum hub, follow the **three-step recipe**:
    }
    ```
 2. **Mount the Code:**
-   - **`route` kind:** Build the page component under `src/pages/MyNewTool.tsx` and add its `<Route>` path inside [App.tsx](file:///D:/AI_Agents/Projects/Mikes_AI_Lab/Repos/Live_Apps/edge-spectrum/src/App.tsx).
-   - **`static` kind:** Put your HTML/CSS/JS folder inside `public/my-new-tool/` and link its `href` to `/my-new-tool/index.html`.
+   - **`route` kind:** Build the page component under `site/src/pages/MyNewTool.tsx` and add its `<Route>` path inside [App.tsx](file:///D:/AI_Agents/Projects/Mikes_AI_Lab/Repos/Live_Apps/edge-spectrum/site/src/App.tsx).
+   - **`static` kind:** Put your HTML/CSS/JS folder inside `site/public/my-new-tool/` and link its `href` to `/my-new-tool/index.html`.
    - **`external` kind:** Set `href` to the external destination URL (it will open in a new tab).
-3. **Accent Setup:** Ensure the selected `accent` name exists inside the Tailwind literal mapping inside [Home.tsx](file:///D:/AI_Agents/Projects/Mikes_AI_Lab/Repos/Live_Apps/edge-spectrum/src/pages/Home.tsx) so the JIT compiler generates the appropriate borders and glows.
+3. **Accent Setup:** Ensure the selected `accent` name exists inside the Tailwind literal mapping inside [Home.tsx](file:///D:/AI_Agents/Projects/Mikes_AI_Lab/Repos/Live_Apps/edge-spectrum/site/src/pages/Home.tsx) so the JIT compiler generates the appropriate borders and glows.
 
 ---
 
 ## 🚀 Deployment
 
-The site is hosted on **Vercel** (`edge-spectrum.mikesailab.com`). 
+The site is hosted on **Vercel** (`edge-spectrum.mikesailab.com`). The Vercel project's **Root Directory is set to `site`**, so it builds from the app subdirectory.
 
 - **Production branch:** `main` (automatically deployed on push/merge).
-- **Local deployment check:** You can use the Vercel CLI to verify preview environments before merging:
+- **Local deployment check:** You can use the Vercel CLI (run from `site/`) to verify preview environments before merging:
   ```bash
+  cd site
   vercel deploy
   ```
 
