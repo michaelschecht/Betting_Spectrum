@@ -8,6 +8,17 @@ coverage/
 !.env.example
 .vercel
 
-# Local agent tooling (not part of the app)
-.claude/
+# Agent tooling (not part of the app). The shared config -- subagents, slash
+# commands, skills -- is committed so a fresh checkout has it; the weekly roadmap
+# routine runs in a throwaway worktree and would otherwise get none of it.
+# Everything else under .claude/ is per-machine state or scratch and stays out.
+.claude/*
+!.claude/agents/
+!.claude/commands/
+!.claude/skills/
+
+# 54 bundled TTF fonts, 7.1 MB -- four times the rest of this repo, for a
+# poster-design skill nothing here uses.
+.claude/skills/canvas-design/
+
 .mcp.json
