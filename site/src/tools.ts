@@ -53,7 +53,7 @@ export const TOOLS: Tool[] = [
     slug: 'backtester',
     title: 'Backtest Simulator',
     blurb:
-      'Backtest wagering strategies across 25 years of MLB, NFL, NHL & NBA games — ROI/Kelly diagnostics, equity curves, live ESPN scores and an AI strategy advisor.',
+      'Backtest wagering strategies over 26 simulated seasons of MLB, NFL, NHL & NBA — ROI/Kelly diagnostics, equity curves, live ESPN scores and an AI strategy advisor.',
     icon: LineChart,
     href: '/backtester',
     kind: 'route',

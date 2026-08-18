@@ -5,6 +5,13 @@ import { createServer as createViteServer } from 'vite';
 import { runValidatedBacktest, BadRequestError } from './src/server/backtest';
 import { fetchEspnScoreboard } from './src/server/espn';
 import { generateAdvice } from './src/server/advisor';
+import {
+  attemptUnlock,
+  clientIp,
+  guardAdvisorRequest,
+  logout,
+  sessionStatus,
+} from './src/server/auth';
 import { Strategy } from './src/types';
 
 const app = express();
@@ -42,10 +49,29 @@ app.get('/api/espn-scoreboard', async (req, res) => {
   }
 });
 
-// 3. AI Advisor Endpoint
+// 3. AI Advisor Session Endpoint (passcode gate)
+app.get('/api/advisor-auth', (req, res) => {
+  const result = sessionStatus(req.headers.cookie);
+  res.status(result.status).json(result.body);
+});
+
+app.post('/api/advisor-auth', (req, res) => {
+  const { passcode, action } = req.body || {};
+  const result = action === 'logout' ? logout() : attemptUnlock(passcode, clientIp(req.headers));
+  if (result.setCookie) res.setHeader('Set-Cookie', result.setCookie);
+  res.status(result.status).json(result.body);
+});
+
+// 4. AI Advisor Endpoint — gated, since it spends the Gemini key
 app.post('/api/strategy-advisor', async (req, res) => {
+  const { prompt, currentStrategy } = req.body || {};
+
+  const denied = guardAdvisorRequest(req.headers.cookie, prompt);
+  if (denied) {
+    return res.status(denied.status).json(denied.body);
+  }
+
   try {
-    const { prompt, currentStrategy } = req.body || {};
     const text = await generateAdvice(prompt, currentStrategy);
     res.setHeader('Content-Type', 'application/json');
     res.send(text);

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Strategy, StrategyTemplate } from '../types';
-import { Send, Sparkles, HelpCircle, ArrowUpRight, BrainCircuit, Play, History, RotateCcw } from 'lucide-react';
+import { Send, Sparkles, HelpCircle, ArrowUpRight, BrainCircuit, Play, History, RotateCcw, Lock, LoaderCircle, KeyRound } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface Message {
@@ -21,19 +21,117 @@ const COMMON_PROMPTS = [
   "Suggest a high-win-rate NHL totals strategy"
 ];
 
+/**
+ * Card shell shared by the locked and unlocked states so the layout never jumps.
+ * Defined at module scope so its identity is stable across renders — nesting it
+ * inside the component would remount the subtree on every keystroke.
+ */
+function Shell({
+  subtitle,
+  actions,
+  children,
+}: {
+  subtitle: React.ReactNode;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl flex flex-col h-[520px] overflow-hidden lg:col-span-2">
+      {/* Advisor Header */}
+      <div className="bg-zinc-950 border-b border-zinc-850 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-lg">
+            <BrainCircuit className="w-4 h-4 animate-glow" />
+          </div>
+          <div>
+            <h3 className="text-xs font-semibold text-zinc-200">Gemini Quant Advisor</h3>
+            {subtitle}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">{actions}</div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function AiAdvisor({ currentStrategy, onApplyTemplate }: AiAdvisorProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
       content: `Welcome to the **EdgeFinder Quantitative Advisory Space**! 
 
-I have indexed historical game results, rosters, and moneyline vigs over the past 25 years. 
+I work over the simulator's 26 synthetic seasons, where the book's hold is the only edge in the data — so treat any winning run here as noise, not a system.
 What strategy concept would you like to build? You can outline rules in natural language (e.g. *"Show me the stats of betting home dogs in divisions when coming off consecutive losses"*), ask for optimal sizing, or test custom options.`,
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+
+  // Passcode gate. The advisor spends a metered Gemini key, so it is locked by
+  // default — the real check lives on the server (src/server/auth.ts); this is
+  // just the affordance for it.
+  const [gate, setGate] = useState<'checking' | 'locked' | 'unlocked' | 'unconfigured'>('checking');
+  const [passcode, setPasscode] = useState('');
+  const [gateError, setGateError] = useState('');
+  const [isUnlocking, setIsUnlocking] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/advisor-auth');
+        const data = await res.json();
+        if (cancelled) return;
+        if (!data.configured) setGate('unconfigured');
+        else setGate(data.authed ? 'unlocked' : 'locked');
+      } catch {
+        if (!cancelled) setGate('locked');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passcode.trim() || isUnlocking) return;
+    setIsUnlocking(true);
+    setGateError('');
+    try {
+      const res = await fetch('/api/advisor-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode }),
+      });
+      const data = await res.json();
+      if (res.ok && data.authed) {
+        setPasscode('');
+        setGate('unlocked');
+      } else {
+        setGateError(data.error || 'Unable to unlock the advisor.');
+      }
+    } catch {
+      setGateError('Could not reach the server. Please retry.');
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
+
+  const handleLock = async () => {
+    try {
+      await fetch('/api/advisor-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' }),
+      });
+    } catch {
+      /* locking the UI matters more than the round-trip succeeding */
+    }
+    setGate('locked');
+  };
 
   const loadingSentences = [
     'Scanning past 25 years of game database matrices...',
@@ -68,6 +166,20 @@ What strategy concept would you like to build? You can outline rules in natural 
         })
       });
 
+      // The session can expire mid-conversation — drop back to the lock screen
+      // rather than showing a generic failure.
+      if (response.status === 401) {
+        setGate('locked');
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: '🔒 **Session expired.** Re-enter the passcode to continue.',
+          },
+        ]);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error('Advisor API request failed');
       }
@@ -87,7 +199,7 @@ What strategy concept would you like to build? You can outline rules in natural 
         ...prev,
         {
           role: 'assistant',
-          content: '⚠️ **System Error**: I am unable to connect with the server-side Gemini intelligence node. Please check your **Settings > Secrets** panel in Google AI Studio to ensure your `GEMINI_API_KEY` is registered and verified.'
+          content: '⚠️ **System Error**: I am unable to reach the server-side Gemini node. Check that `GEMINI_API_KEY` is set in the deployment environment, then retry.'
         }
       ]);
     } finally {
@@ -105,28 +217,97 @@ What strategy concept would you like to build? You can outline rules in natural 
     ]);
   };
 
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl flex flex-col h-[520px] overflow-hidden lg:col-span-2">
-      {/* Advisor Header */}
-      <div className="bg-zinc-950 border-b border-zinc-850 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-lg">
-            <BrainCircuit className="w-4 h-4 animate-glow" />
-          </div>
-          <div>
-            <h3 className="text-xs font-semibold text-zinc-200">Gemini Quant Advisor</h3>
-            <span className="text-[9px] text-emerald-400 font-mono tracking-wide">Ready for backtest execution</span>
-          </div>
-        </div>
+  if (gate !== 'unlocked') {
+    return (
+      <Shell
+        subtitle={
+          <span className="text-[9px] text-amber-400 font-mono tracking-wide">
+            {gate === 'checking' ? 'Checking session…' : gate === 'unconfigured' ? 'Not configured' : 'Locked'}
+          </span>
+        }
+      >
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center bg-zinc-950/40">
+          {gate === 'checking' ? (
+            <LoaderCircle className="w-6 h-6 text-zinc-600 animate-spin" />
+          ) : gate === 'unconfigured' ? (
+            <>
+              <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-500">
+                <Lock className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-zinc-300">Advisor unavailable</h4>
+                <p className="mt-1.5 text-[11px] text-zinc-500 leading-relaxed max-w-xs">
+                  No passcode is configured for this deployment, so the AI advisor is disabled.
+                  Every other tool on the page works normally.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-400">
+                <Lock className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-zinc-200">Advisor locked</h4>
+                <p className="mt-1.5 text-[11px] text-zinc-500 leading-relaxed max-w-xs">
+                  The Gemini advisor runs on a metered API key, so it sits behind a passcode.
+                  The backtest engine and live scoreboard are open to everyone.
+                </p>
+              </div>
 
-        <button
-          onClick={clearChat}
-          className="p-1 text-zinc-500 hover:text-zinc-300 rounded-md transition-colors"
-          title="Reset Advisory Conversation"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-        </button>
-      </div>
+              <form onSubmit={handleUnlock} className="w-full max-w-[260px] flex flex-col gap-2">
+                <div className="relative">
+                  <KeyRound className="w-3.5 h-3.5 text-zinc-600 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    value={passcode}
+                    autoComplete="current-password"
+                    onChange={(e) => setPasscode(e.target.value)}
+                    placeholder="Passcode"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-sky-500 transition-colors"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isUnlocking || !passcode.trim()}
+                  className="py-2 text-xs font-semibold bg-sky-600 hover:bg-sky-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {isUnlocking ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3 h-3" />}
+                  <span>{isUnlocking ? 'Unlocking…' : 'Unlock advisor'}</span>
+                </button>
+                {gateError && (
+                  <span className="text-[10px] text-rose-400 font-medium">{gateError}</span>
+                )}
+              </form>
+            </>
+          )}
+        </div>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell
+      subtitle={<span className="text-[9px] text-emerald-400 font-mono tracking-wide">Ready for backtest execution</span>}
+      actions={
+        <>
+          <button
+            onClick={handleLock}
+            className="p-1 text-zinc-500 hover:text-zinc-300 rounded-md transition-colors"
+            title="Lock the advisor"
+          >
+            <Lock className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={clearChat}
+            className="p-1 text-zinc-500 hover:text-zinc-300 rounded-md transition-colors"
+            title="Reset Advisory Conversation"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        </>
+      }
+    >
 
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-zinc-950/40">
@@ -237,6 +418,6 @@ What strategy concept would you like to build? You can outline rules in natural 
           <Send className="w-3.5 h-3.5" />
         </button>
       </form>
-    </div>
+    </Shell>
   );
 }

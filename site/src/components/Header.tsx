@@ -1,5 +1,9 @@
 import React from 'react';
-import { Shield, Sparkles, TrendingUp, Trophy } from 'lucide-react';
+import { Shield, TrendingUp, Trophy } from 'lucide-react';
+import { MARKET_OVERROUND } from '../dataGenerator';
+
+/** The book's hold, read straight off the model rather than asserted. */
+const HOLD_PERCENT = ((MARKET_OVERROUND - 1) / MARKET_OVERROUND) * 100;
 
 export default function Header() {
   return (
@@ -12,12 +16,12 @@ export default function Header() {
           <div>
             <h1 className="text-xl md:text-2xl font-semibold text-zinc-100 tracking-tight flex items-center gap-2">
               Sports Betting Backtest Simulator
-              <span className="px-2 py-0.5 text-[10px] uppercase font-mono tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                Live Data Engine
+              <span className="px-2 py-0.5 text-[10px] uppercase font-mono tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full">
+                Simulated Data
               </span>
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Historical performance analytics & strategy emulator for MLB, NFL, NHL & NBA from 2000 to 2025
+              Strategy emulator over 26 simulated seasons of MLB, NFL, NHL & NBA (2000-2025)
             </p>
           </div>
         </div>
@@ -25,11 +29,11 @@ export default function Header() {
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-zinc-800/40 border border-zinc-700/50 rounded-lg text-xs font-mono text-zinc-300">
             <Shield className="w-3.5 h-3.5 text-sky-400" />
-            <span>Simulated Vig Hold: 4.5%</span>
+            <span>Book Hold: {HOLD_PERCENT.toFixed(2)}%</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-500/15 border border-sky-400/20 rounded-lg text-xs font-medium text-sky-300">
             <TrendingUp className="w-3.5 h-3.5 text-sky-400" />
-            <span>Optimal Fraction Kelly Model Enabled</span>
+            <span>Quarter-Kelly Sizing</span>
           </div>
         </div>
       </div>
