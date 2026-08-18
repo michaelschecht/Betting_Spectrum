@@ -10,22 +10,23 @@
 
 ---
 
-## 🔴 1. The Backtest Simulator has a large built-in bias
+## ✅ 1. The Backtest Simulator had a large built-in bias — fixed 2026-08-18
 
-**This is the highest-priority item in the repo.** Everything else can wait behind it.
+**Was the highest-priority item in the repo.** Resolved; the results below are kept as the record
+of what was wrong and the band the regression now holds the model to.
 
-### What's wrong
+### What was wrong
 
-`site/src/dataGenerator.ts` derives both the betting line *and* the game score from the same
+`site/src/dataGenerator.ts` derived both the betting line *and* the game score from the same
 power ratings, but with **mismatched coefficients**. For NFL:
 
 - Line: `expectedSpread = powerDiff * 0.35`
 - Score: `homeScore - awayScore ≈ 2 + powerDiff * 0.4`
 
-The home side is therefore underpriced by roughly `2 + 0.05 × powerDiff` points **by construction**.
-The same mismatch exists in every sport, and it is worst in NBA.
+The home side was therefore underpriced by roughly `2 + 0.05 × powerDiff` points **by
+construction**. The same mismatch existed in every sport, and was worst in NBA.
 
-### Measured impact
+### Measured impact (before the fix)
 
 Running the engine directly over 2000–2025:
 
@@ -38,35 +39,69 @@ Running the engine directly over 2000–2025:
 | MLB — bet home | 20,800 | 53.9% | +2.84% |
 | NFL — bet under | 7,072 | 59.1% | +12.15% |
 
-A new user's first few clicks teach them that blind home-ATS betting returns 15–37% forever —
-the exact opposite of the lesson Edge Spectrum exists to deliver. NBA at 72.3% is not subtle;
-any quantitative visitor will spot it and discount the whole hub.
+A new user's first few clicks taught them that blind home-ATS betting returns 15–37% forever —
+the exact opposite of the lesson Edge Spectrum exists to deliver. NBA at 72.3% was not subtle;
+any quantitative visitor would have spotted it and discounted the whole hub.
 
-### Fix
+### Fix (shipped)
 
-1. Extract a single `expectedMargin(sport, home, away, context)` used by **both** the line
-   generator and the score generator.
-2. Set the line from that expectation: `line = -round(expectedMargin * 2) / 2`, then shade the
-   *price* to a realistic hold (~4.5% two-way) rather than baking edge into the line.
-3. Do the same for totals — `overUnder` must be the expectation of `homeScore + awayScore`.
-4. **Add a regression test** asserting `|ROI| < 1%` for every naive side (home / away / favorites /
-   underdogs / over / under) across all four sports over the full 2000–2025 range. This is the
-   guard rail that keeps the bug from coming back.
+1. One `expectedMargin` / `expectedTotal` per game now drives **both** the posted lines and the
+   score draw — `SPORT_MODEL` in `site/src/dataGenerator.ts`.
+2. Scores are drawn around exactly that expectation. NFL and NBA use a normal draw floored at
+   zero (with the floor's effect on the mean *and* variance carried into the prices); MLB and NHL
+   use Poisson, which suits count scores and never needs a floor.
+3. **Every market is priced from its own realised distribution**, not assumed to be −110. This
+   turned out to be essential: run and goal distributions are right-skewed, so their mean sits
+   above their median and a line placed at the mean is not a coin flip. `Game` gained
+   `homeSpreadOdds` / `awaySpreadOdds` / `overOdds` / `underOdds`, and the engine reads the posted
+   price for whichever side a strategy took.
+4. A level score is broken with one extra point, so that probability mass is redistributed
+   *before* pricing. Skipping this was worth ~0.6% ROI to the home side on its own: a tie counts as
+   an away cover beforehand, but half of it flips to home afterwards.
+5. Team **defense ratings now count** — strength blends offense and defense, and totals move on
+   offense minus opposing defense, so the dynasty defenses in `getTeamHistoricalRating` finally
+   matter.
+6. Vig is one constant, `MARKET_OVERROUND = 1.0476` (a 4.54% hold, matching −110/−110), applied so
+   it can never price a side below fair value. No bet is +EV by construction.
 
-Expected result after the fix: every naive strategy lands near **−4.5% ROI** with honest variance
-around it. That is the teachable, correct outcome.
+### Result
 
-### Related: fix the framing
+All 40 naive strategies (4 sports × 10 selections, 2000–2025) now land between **−3.06% and
+−5.81%** ROI. None is profitable; the spread around the 4.54% hold is discretisation slack from
+integer scores and half-point lines.
 
-The footer already discloses simulation, but other surfaces contradict it:
+| Strategy (ATS) | Was | Now |
+|---|---:|---:|
+| NBA — bet home | +37.32% | −4.60% |
+| NFL — bet home | +15.73% | −3.53% |
+| NFL — bet favorites | +13.97% | −3.26% |
+| NHL — bet home | +6.20% | −5.56% |
+| MLB — bet home | +2.84% | −3.99% |
+| NFL — bet under | +12.15% | −5.30% |
 
-- `src/components/Header.tsx` badge reads **"Live Data Engine"** → change to **"Simulated Data"**.
-- `src/tools.ts` blurb says *"across 25 years of MLB, NFL, NHL & NBA games"* → say "25 simulated seasons".
-- Header badges **"Simulated Vig Hold: 4.5%"** and **"Optimal Fraction Kelly Model Enabled"** are
-  decorative — the vig is emergent (not 4.5%) and Kelly is a hardcoded quarter-Kelly. Wire them
-  to real values or remove them.
-- Add a `/methodology` page explaining the generator, the DU/CED framework, and the Spectrum's
-  data sources. Honest framing is an asset here, not a weakness.
+The default landing view (NFL / moneyline / favorites / 2020–24) went from **+15.92% ROI and
++$21,650** to **−1.39% and −$1,884** over the same 1,360 bets.
+
+### Regression guard
+
+`npm run check:market` (from `site/`) runs `marketDiagnostics()` over all 40 naive strategies and
+exits non-zero if any lands outside −7%…−2.5%. Verified to fail as intended by reintroducing a
+1.2-point mispricing. **Wire this into CI** alongside the typecheck (section 3).
+
+### Related: framing (shipped)
+
+The footer disclosed simulation, but other surfaces contradicted it. All now corrected:
+
+- ✅ Header badge **"Live Data Engine"** → **"Simulated Data"**.
+- ✅ `tools.ts` blurb and the header subtitle now say "26 simulated seasons".
+- ✅ **"Simulated Vig Hold: 4.5%"** → **"Book Hold: 4.54%"**, read live off `MARKET_OVERROUND`
+  instead of asserted; **"Optimal Fraction Kelly Model Enabled"** → **"Quarter-Kelly Sizing"**,
+  which is what the code actually does.
+- ✅ The backtester footer and the AI advisor (both its welcome copy and its system prompt) now
+  state that the data is simulated and that the hold is the only edge in it — the advisor is
+  explicitly told not to imply a good backtest means a real-world edge.
+- ⬜ Still to do: a `/methodology` page explaining the generator, the DU/CED framework, and the
+  Spectrum's data sources. Honest framing is an asset here, not a weakness.
 
 ---
 
@@ -238,7 +273,7 @@ variables for production. Optionally set `ADVISOR_SECRET` to a long random strin
 
 | Phase | Work |
 |---|---|
-| **Now** | ✅ Auth gate on the advisor · fix the section 1 generator bias + regression test · rename "Live Data Engine" → "Simulated Data" · Zod-validate `/api/backtest` · ESPN cache headers |
+| **Now** | ✅ Auth gate on the advisor · ✅ section 1 generator bias + regression guard · ✅ "Live Data Engine" → "Simulated Data" · Zod-validate `/api/backtest` · ESPN cache headers · wire `check:market` into CI |
 | **Next** | Client-side sim in a Web Worker (removes the API round-trip entirely) · lazy routes · URL-serialised strategy + share cards · Vitest + GitHub Actions CI |
 | **Then** | Significance panel + Monte Carlo fan chart + staking grid · odds / vig / parlay calculators |
 | **After** | CLV tracker (needs a DB) · real historical odds for one sport · Edge Audit · quiz |
@@ -249,5 +284,5 @@ variables for production. Optionally set `ADVISOR_SECRET` to a long random strin
 
 The architecture is genuinely good — the `tools.ts` registry with shared `src/server/` modules
 bridging Express and Vercel is clean, and adding a tool really is one entry plus one page. The
-bottleneck is not structure; it is that the flagship tool's numbers are wrong. Fix section 1 and
-the hub is ready to grow.
+bottleneck was not structure; it was that the flagship tool's numbers were wrong. With section 1
+fixed, the hub is ready to grow.

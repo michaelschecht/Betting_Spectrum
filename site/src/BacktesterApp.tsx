@@ -192,10 +192,13 @@ export default function App() {
         <footer className="border-t border-zinc-900 mt-12 pt-6 pb-6 text-center text-zinc-500 text-[11px] leading-relaxed">
           <div className="flex justify-center items-center gap-1.5 text-sky-400 hover:text-sky-300 mb-1">
             <BookOpen className="w-3.5 h-3.5" />
-            <span className="font-semibold">Simulated Backtesting Knowledge base</span>
+            <span className="font-semibold">About this simulation</span>
           </div>
           <p>
-            The historical simulations use regression indices approximating real team standings and playoff records between 2000 and 2025.
+            Games are <strong>simulated</strong>, not historical. Team strength follows era ratings that
+            approximate real 2000&ndash;2025 standings, and every line is priced off the same distribution the
+            scores are drawn from &mdash; so the book&rsquo;s hold is the only edge in the data. Strategies that
+            look profitable here are noise, which is rather the point.
           </p>
           <p className="mt-1">
             Sports Betting Backtest Simulator © {new Date().getFullYear()} • Custom Analytical Sandbox Engine. Always gamble responsibly.

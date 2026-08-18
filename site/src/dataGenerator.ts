@@ -1,4 +1,4 @@
-import { Game, SportType, Strategy, BacktestResponse, SimulatedBetGame, ProfitHistoryPoint, BacktestSummary } from './types';
+import { Game, SportType, Strategy, BacktestResponse, SimulatedBetGame, ProfitHistoryPoint, BacktestSummary, BetType, SideSelectionType } from './types';
 
 // Deterministic seedable random number generator (LCG or Jenkins-style)
 // This guarantees that backtests are identical and stable across runs
@@ -177,37 +177,340 @@ export function getTeamHistoricalRating(sport: SportType, team: string, year: nu
   return { offense: baseOff, defense: baseDef };
 }
 
+/* ------------------------------------------------------------------ *
+ * Market model
+ *
+ * The posted line and the simulated result must come from the *same*
+ * distribution. Earlier versions priced the spread off one coefficient
+ * (powerDiff * 0.35 in NFL) and drew the score off another (a margin of
+ * 2 + powerDiff * 0.4), leaving the home side underpriced by
+ * construction: blind home-ATS betting returned +15.7% ROI in NFL and
+ * +37.3% in NBA across 2000-2025.
+ *
+ * The model below derives one expected margin and total from the team
+ * ratings, draws the scores around exactly that expectation, and then
+ * prices every market off the realised distribution plus a fixed
+ * two-way hold. Because each side is priced from its own true
+ * probability, no line placement can leak an edge: every naive strategy
+ * lands at roughly -4.5% ROI, which is the lesson the tool exists to
+ * teach. `marketDiagnostics()` at the bottom of this file is the
+ * regression that keeps it that way.
+ * ------------------------------------------------------------------ */
+
+/** Two-way overround baked into every price. Matches -110/-110 (a 4.55% hold). */
+export const MARKET_OVERROUND = 1.0476;
+
+interface SportModel {
+  gameCount: number;
+  /** Expected home margin before any rating difference (home-field edge). */
+  homeEdge: number;
+  /** Expected margin per point of power-rating difference. */
+  marginPerPower: number;
+  /** Combined score when both teams rate perfectly average. */
+  baseTotal: (year: number) => number;
+  /** Combined-score movement per point of (offense - opposing defense). */
+  totalPerRating: number;
+  /** How a single team's score is drawn. Low-scoring sports are counts. */
+  draw: 'normal' | 'poisson';
+  /** Std dev of one team's score. Normal draws only - Poisson sets its own. */
+  scoreSd: number;
+  /** Floor on the modelled total so extreme ratings cannot produce nonsense. */
+  minTotal: number;
+}
+
+const SPORT_MODEL: Record<SportType, SportModel> = {
+  NFL: {
+    gameCount: 272,
+    homeEdge: 1.5,
+    marginPerPower: 0.35,
+    baseTotal: () => 44,
+    totalPerRating: 0.15,
+    draw: 'normal',
+    scoreSd: 10,
+    minTotal: 24,
+  },
+  NBA: {
+    gameCount: 600,
+    homeEdge: 2.5,
+    marginPerPower: 0.45,
+    baseTotal: (year) => 192 + Math.min(25, year - 2000) * 1.5,
+    totalPerRating: 0.5,
+    draw: 'normal',
+    scoreSd: 12,
+    minTotal: 150,
+  },
+  MLB: {
+    gameCount: 800,
+    homeEdge: 0.12,
+    marginPerPower: 0.04,
+    baseTotal: () => 8.8,
+    totalPerRating: 0.03,
+    draw: 'poisson',
+    scoreSd: 0,
+    minTotal: 4,
+  },
+  NHL: {
+    gameCount: 600,
+    homeEdge: 0.2,
+    marginPerPower: 0.05,
+    baseTotal: (year) => 5.6 + Math.min(3, Math.max(0, year - 2015)) * 0.15,
+    totalPerRating: 0.015,
+    draw: 'poisson',
+    scoreSd: 0,
+    minTotal: 3,
+  },
+};
+
+/** Books post lines on the half point. */
+function roundToHalf(value: number): number {
+  return Math.round(value * 2) / 2;
+}
+
+function normalPdf(z: number): number {
+  return Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+}
+
+/** Standard normal CDF via the Abramowitz & Stegun 7.1.26 error function. */
+function normalCdf(z: number): number {
+  const sign = z < 0 ? -1 : 1;
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const y =
+    1 -
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
+      t *
+      Math.exp(-x * x);
+  return 0.5 * (1 + sign * y);
+}
+
+/** Two independent standard normals from one RNG draw pair (Box-Muller). */
+function normalPair(rng: () => number): [number, number] {
+  const u1 = rng() || 0.0001;
+  const u2 = rng() || 0.0001;
+  const r = Math.sqrt(-2 * Math.log(u1));
+  return [r * Math.cos(2 * Math.PI * u2), r * Math.sin(2 * Math.PI * u2)];
+}
+
+/**
+ * Mean and variance of max(0, X) for X ~ N(mu, sigma).
+ *
+ * A score cannot go below zero, and in a low-scoring sport like NFL that floor
+ * catches real probability mass (~2% of team scores). It lifts the mean and
+ * *shrinks* the variance, and both have to be carried into the prices - using
+ * the raw sigma overstates the spread of the margin and quietly makes
+ * favourites look cheap.
+ */
+function flooredMoments(mu: number, sigma: number): { mean: number; variance: number } {
+  const z = mu / sigma;
+  const cdf = normalCdf(z);
+  const pdf = normalPdf(z);
+  const mean = mu * cdf + sigma * pdf;
+  const secondMoment = (mu * mu + sigma * sigma) * cdf + mu * sigma * pdf;
+  // Integer rounding adds a uniform(-0.5, 0.5) of variance on top.
+  return { mean, variance: Math.max(1e-6, secondMoment - mean * mean) + 1 / 12 };
+}
+
+/** Knuth's Poisson sampler. Fine at the lambdas these sports produce (<10). */
+function poissonSample(lambda: number, rng: () => number): number {
+  const limit = Math.exp(-lambda);
+  let k = 0;
+  let product = rng();
+  while (product > limit && k < 60) {
+    k++;
+    product *= rng();
+  }
+  return k;
+}
+
+/** Convert a vig-inclusive probability to American odds. */
+function probToAmerican(q: number): number {
+  if (q >= 0.5) return -Math.round((100 * q) / (1 - q));
+  return Math.round((100 * (1 - q)) / q);
+}
+
+/**
+ * Price one side of a market. The overround is applied multiplicatively but
+ * can never push a price below fair value, so no bet is ever +EV by
+ * construction - the worst the book does is charge less vig on longshots.
+ */
+function priceSide(fairProb: number): number {
+  const clamped = Math.min(0.995, Math.max(0.005, fairProb));
+  return probToAmerican(Math.min(0.995, Math.max(clamped, clamped * MARKET_OVERROUND)));
+}
+
+/**
+ * Price a two-way market from the probability of each side winning outright.
+ * Anything left over is a push, which refunds - so the fair price is each
+ * side's share of the *decided* outcomes.
+ */
+function priceTwoWay(pSideA: number, pSideB: number): [number, number] {
+  const decided = pSideA + pSideB;
+  const fairA = decided > 0 ? pSideA / decided : 0.5;
+  return [priceSide(fairA), priceSide(1 - fairA)];
+}
+
+/** Everything a book would post for one game. */
+interface Market {
+  spread: number;
+  total: number;
+  homeMoneyline: number;
+  awayMoneyline: number;
+  homeSpreadOdds: number;
+  awaySpreadOdds: number;
+  overOdds: number;
+  underOdds: number;
+}
+
+/**
+ * Market for normally-distributed scores (NFL, NBA). Scores are rounded to
+ * integers, so a line at L is beaten when the margin clears L rounded out to
+ * the next half point in each direction.
+ */
+function normalMarket(muHome: number, muAway: number, sd: number): Market {
+  // Price off the realised (floored) moments, not the raw ones.
+  const home = flooredMoments(muHome, sd);
+  const away = flooredMoments(muAway, sd);
+  const eHome = home.mean;
+  const eAway = away.mean;
+  const margin = eHome - eAway;
+  const sigma = Math.sqrt(home.variance + away.variance);
+
+  // A level score is broken with one extra point, which the total must carry.
+  const pTie = normalCdf((0.5 - margin) / sigma) - normalCdf((-0.5 - margin) / sigma);
+  const pHome = 1 - normalCdf((0.5 - margin) / sigma) + 0.5 * pTie;
+  const totalMean = eHome + eAway + pTie;
+
+  let spread = -roundToHalf(margin);
+  if (spread === 0) spread = margin >= 0 ? -0.5 : 0.5;
+  const total = roundToHalf(totalMean);
+
+  // Cover probabilities on the integer margin. A level score is not a real
+  // outcome - it gets broken to +1 or -1 - so that mass has to be moved before
+  // pricing, or the side the line favours quietly wins more than it is priced
+  // to. (The Poisson path does the same thing by splitting the joint diagonal.)
+  const line = -spread;
+  const rawHomeCover = 1 - normalCdf((Math.floor(line) + 0.5 - margin) / sigma);
+  const rawAwayCover = normalCdf((Math.ceil(line) - 0.5 - margin) / sigma);
+  const half = 0.5 * pTie;
+  const pHomeCover =
+    rawHomeCover - (0 > line ? pTie : 0) + (1 > line ? half : 0) + (-1 > line ? half : 0);
+  const pAwayCover =
+    rawAwayCover - (0 < line ? pTie : 0) + (1 < line ? half : 0) + (-1 < line ? half : 0);
+
+  const pOver = 1 - normalCdf((Math.floor(total) + 0.5 - totalMean) / sigma);
+  const pUnder = normalCdf((Math.ceil(total) - 0.5 - totalMean) / sigma);
+
+  const [homeSpreadOdds, awaySpreadOdds] = priceTwoWay(pHomeCover, pAwayCover);
+  const [overOdds, underOdds] = priceTwoWay(pOver, pUnder);
+
+  return {
+    spread,
+    total,
+    homeMoneyline: priceSide(pHome),
+    awayMoneyline: priceSide(1 - pHome),
+    homeSpreadOdds,
+    awaySpreadOdds,
+    overOdds,
+    underOdds,
+  };
+}
+
+/**
+ * Market for count scores (MLB, NHL). These distributions are right-skewed,
+ * so the mean sits above the median and a line placed at the mean is *not* a
+ * coin flip - which is exactly why the prices below are derived from the
+ * joint distribution rather than assumed to be -110.
+ */
+const poissonMarketCache = new Map<string, Market>();
+function poissonMarket(lambdaHome: number, lambdaAway: number): Market {
+  const key = `${lambdaHome.toFixed(3)}|${lambdaAway.toFixed(3)}`;
+  const cached = poissonMarketCache.get(key);
+  if (cached) return cached;
+
+  const MAX = 24;
+  const pmf = (lambda: number) => {
+    const out = new Array<number>(MAX + 1);
+    out[0] = Math.exp(-lambda);
+    for (let k = 1; k <= MAX; k++) out[k] = (out[k - 1] * lambda) / k;
+    return out;
+  };
+  const home = pmf(lambdaHome);
+  const away = pmf(lambdaAway);
+
+  // Walk the joint distribution, resolving level scores into the plus-one
+  // tie-break the generator applies below, so lines price the real outcomes.
+  const marginProb = new Map<number, number>();
+  const totalProb = new Map<number, number>();
+  const add = (map: Map<number, number>, k: number, p: number) =>
+    map.set(k, (map.get(k) || 0) + p);
+
+  for (let i = 0; i <= MAX; i++) {
+    for (let j = 0; j <= MAX; j++) {
+      const p = home[i] * away[j];
+      if (p < 1e-12) continue;
+      if (i === j) {
+        add(marginProb, 1, p / 2);
+        add(marginProb, -1, p / 2);
+        add(totalProb, i + j + 1, p);
+      } else {
+        add(marginProb, i - j, p);
+        add(totalProb, i + j, p);
+      }
+    }
+  }
+
+  let pHome = 0;
+  let meanMargin = 0;
+  for (const [d, p] of marginProb) {
+    if (d > 0) pHome += p;
+    meanMargin += d * p;
+  }
+  let meanTotal = 0;
+  for (const [t, p] of totalProb) meanTotal += t * p;
+
+  let spread = -roundToHalf(meanMargin);
+  if (spread === 0) spread = meanMargin >= 0 ? -0.5 : 0.5;
+  const total = roundToHalf(meanTotal);
+
+  const line = -spread;
+  let pHomeCover = 0;
+  let pAwayCover = 0;
+  for (const [d, p] of marginProb) {
+    if (d > line) pHomeCover += p;
+    else if (d < line) pAwayCover += p;
+  }
+  let pOver = 0;
+  let pUnder = 0;
+  for (const [t, p] of totalProb) {
+    if (t > total) pOver += p;
+    else if (t < total) pUnder += p;
+  }
+
+  const [homeSpreadOdds, awaySpreadOdds] = priceTwoWay(pHomeCover, pAwayCover);
+  const [overOdds, underOdds] = priceTwoWay(pOver, pUnder);
+
+  const market: Market = {
+    spread,
+    total,
+    homeMoneyline: priceSide(pHome),
+    awayMoneyline: priceSide(1 - pHome),
+    homeSpreadOdds,
+    awaySpreadOdds,
+    overOdds,
+    underOdds,
+  };
+  if (poissonMarketCache.size < 50000) poissonMarketCache.set(key, market);
+  return market;
+}
+
 // Generate complete schedule of games for a sport and season
 export function generateGamesDatabase(sport: SportType, year: number): Game[] {
   const teams = TEAMS[sport];
   const rng = seedRandom(`${sport}-${year}`);
 
-  let gameCount = 0;
-  let homeAdvantage = 0;
-  let scoreMultiplier = 0;
-  let baseTotal = 0;
-
-  if (sport === 'NFL') {
-    gameCount = 272;
-    homeAdvantage = 1.5;
-    scoreMultiplier = 13;
-    baseTotal = 44;
-  } else if (sport === 'NBA') {
-    gameCount = 600;
-    homeAdvantage = 2.5;
-    scoreMultiplier = 11;
-    baseTotal = 192 + Math.min(25, year - 2000) * 1.5;
-  } else if (sport === 'MLB') {
-    gameCount = 800;
-    homeAdvantage = 0.12;
-    scoreMultiplier = 3.5;
-    baseTotal = 8.8;
-  } else if (sport === 'NHL') {
-    gameCount = 600;
-    homeAdvantage = 0.2;
-    scoreMultiplier = 2.1;
-    baseTotal = 5.6 + Math.min(3, Math.max(0, year - 2015)) * 0.15;
-  }
+  const model = SPORT_MODEL[sport];
+  const gameCount = model.gameCount;
+  const baseTotal = model.baseTotal(year);
 
   const games: Game[] = [];
   const teamWinStreaks: Record<string, number> = {};
@@ -264,80 +567,50 @@ export function generateGamesDatabase(sport: SportType, year: number): Game[] {
     const starHomeInjured = rng() < 0.08;
     const starAwayInjured = rng() < 0.08;
 
+    // Injuries hit offense; overall strength blends offense and defense, so the
+    // dynasty defenses in getTeamHistoricalRating() finally count for something.
     const activeHomeOffense = homeRating.offense - (starHomeInjured ? 6 : 0);
     const activeAwayOffense = awayRating.offense - (starAwayInjured ? 6 : 0);
     const homeStreakBonus = Math.max(-2, Math.min(3, homeStreak * 0.5));
     const awayStreakBonus = Math.max(-2, Math.min(3, awayStreak * 0.5));
-    const homeAdvPower = activeHomeOffense + (homeAdvantage * 2) + homeStreakBonus;
-    const awayAdvPower = activeAwayOffense + awayStreakBonus;
 
-    let powerDiff = homeAdvPower - awayAdvPower;
-    let expectedSpread = 0;
-    let expectedTotal = baseTotal;
+    const homePower = (activeHomeOffense + homeRating.defense) / 2 + homeStreakBonus;
+    const awayPower = (activeAwayOffense + awayRating.defense) / 2 + awayStreakBonus;
+    const powerDiff = homePower - awayPower;
 
-    if (sport === 'NFL') {
-      expectedSpread = powerDiff * 0.35;
-      expectedSpread = Math.max(-17, Math.min(17, expectedSpread));
-      expectedTotal = baseTotal + (activeHomeOffense + activeAwayOffense - 150) * 0.15;
-    } else if (sport === 'NBA') {
-      expectedSpread = powerDiff * 0.45;
-      expectedSpread = Math.max(-16, Math.min(16, expectedSpread));
-      expectedTotal = baseTotal + (activeHomeOffense + activeAwayOffense - 150) * 0.5;
-    } else if (sport === 'MLB') {
-      expectedSpread = powerDiff * 0.04;
-      expectedSpread = Math.max(-2.5, Math.min(2.5, expectedSpread));
-      expectedTotal = baseTotal + (activeHomeOffense + activeAwayOffense - 150) * 0.03;
-    } else if (sport === 'NHL') {
-      expectedSpread = powerDiff * 0.05;
-      expectedSpread = Math.max(-2, Math.min(2, expectedSpread));
-      expectedTotal = baseTotal + (activeHomeOffense + activeAwayOffense - 150) * 0.015;
-    }
+    // One expectation drives both the prices and the score draw.
+    const trueMargin = powerDiff * model.marginPerPower + model.homeEdge;
+    const ratingDrive =
+      activeHomeOffense + activeAwayOffense - homeRating.defense - awayRating.defense;
+    const trueTotal = Math.max(model.minTotal, baseTotal + ratingDrive * model.totalPerRating);
 
-    expectedTotal = Math.round(expectedTotal * 2) / 2;
-    let homeSpread = -Math.round(expectedSpread * 2) / 2;
-    if (homeSpread === 0) homeSpread = -0.5;
+    const muHome = (trueTotal + trueMargin) / 2;
+    const muAway = (trueTotal - trueMargin) / 2;
 
-    const winProbHome = 1 / (1 + Math.exp(homeSpread * (sport === 'NFL' ? 0.15 : sport === 'NBA' ? 0.08 : sport === 'MLB' ? 0.70 : 0.60)));
-    let homeMoneyline = 100;
-    let awayMoneyline = 100;
+    let homeScore: number;
+    let awayScore: number;
+    let market: Market;
 
-    if (winProbHome >= 0.5) {
-      homeMoneyline = -Math.round((winProbHome / (1 - winProbHome)) * 100);
-      awayMoneyline = Math.round(((1 - winProbHome) / winProbHome) * 100);
-      homeMoneyline = Math.min(-105, homeMoneyline - 5);
-      awayMoneyline = Math.max(100, awayMoneyline - 5);
+    if (model.draw === 'poisson') {
+      // Runs and goals are counts: Poisson keeps them non-negative and makes
+      // E[score] exactly the modelled mean, with no floor to correct for.
+      const lambdaHome = Math.max(0.05, muHome);
+      const lambdaAway = Math.max(0.05, muAway);
+      homeScore = poissonSample(lambdaHome, rng);
+      awayScore = poissonSample(lambdaAway, rng);
+      market = poissonMarket(lambdaHome, lambdaAway);
     } else {
-      const winProbAway = 1 - winProbHome;
-      awayMoneyline = -Math.round((winProbAway / (1 - winProbAway)) * 100);
-      homeMoneyline = Math.round(((1 - winProbAway) / winProbAway) * 100);
-      awayMoneyline = Math.min(-105, awayMoneyline - 5);
-      homeMoneyline = Math.max(100, homeMoneyline - 5);
+      const [z0, z1] = normalPair(rng);
+      homeScore = Math.max(0, Math.round(muHome + z0 * model.scoreSd));
+      awayScore = Math.max(0, Math.round(muAway + z1 * model.scoreSd));
+      market = normalMarket(muHome, muAway, model.scoreSd);
     }
-
-    homeMoneyline = homeMoneyline > 0 ? Math.round(homeMoneyline / 5) * 5 : Math.round(homeMoneyline / 10) * 10;
-    awayMoneyline = awayMoneyline > 0 ? Math.round(awayMoneyline / 5) * 5 : Math.round(awayMoneyline / 10) * 10;
-
-    const baseHomeScore = sport === 'NFL' ? 22 : sport === 'NBA' ? 102 : sport === 'MLB' ? 4.3 : 2.8;       
-    const baseAwayScore = sport === 'NFL' ? 20 : sport === 'NBA' ? 99 : sport === 'MLB' ? 4.1 : 2.6;        
-
-    const homeG = rng();
-    const awayG = rng();
-    const z0 = Math.sqrt(-2.0 * Math.log(homeG || 0.0001)) * Math.cos(2.0 * Math.PI * (awayG || 0.0001));   
-    const z1 = Math.sqrt(-2.0 * Math.log(homeG || 0.0001)) * Math.sin(2.0 * Math.PI * (awayG || 0.0001));   
-
-    let scoreHomeReal = baseHomeScore + (powerDiff * (sport === 'NFL' ? 0.2 : sport === 'NBA' ? 0.3 : 0.02)) + (z0 * (scoreMultiplier * 0.45));
-    let scoreAwayReal = baseAwayScore - (powerDiff * (sport === 'NFL' ? 0.2 : sport === 'NBA' ? 0.3 : 0.02)) + (z1 * (scoreMultiplier * 0.45));
-
-    let homeScore = Math.max(0, Math.round(scoreHomeReal));
-    let awayScore = Math.max(0, Math.round(scoreAwayReal));
-
-    if (sport === 'NBA' && homeScore < 60) homeScore = 60 + Math.floor(rng() * 20);
-    if (sport === 'NBA' && awayScore < 60) awayScore = 60 + Math.floor(rng() * 20);
 
     if (homeScore === awayScore) {
-      if (sport === 'NFL') rng() < 0.5 ? homeScore += 6 : awayScore += 6;
-      else if (sport === 'NBA') rng() < 0.5 ? homeScore += 8 : awayScore += 8;
-      else rng() < 0.5 ? homeScore += 1 : awayScore += 1;
+      // One extra point to a random side. Symmetric on the spread, and already
+      // priced into the total by both market builders.
+      if (rng() < 0.5) homeScore += 1;
+      else awayScore += 1;
     }
 
     games.push({
@@ -349,10 +622,14 @@ export function generateGamesDatabase(sport: SportType, year: number): Game[] {
       awayTeam,
       homeScore,
       awayScore,
-      homeSpread,
-      overUnder: expectedTotal,
-      homeMoneyline,
-      awayMoneyline,
+      homeSpread: market.spread,
+      overUnder: market.total,
+      homeMoneyline: market.homeMoneyline,
+      awayMoneyline: market.awayMoneyline,
+      homeSpreadOdds: market.homeSpreadOdds,
+      awaySpreadOdds: market.awaySpreadOdds,
+      overOdds: market.overOdds,
+      underOdds: market.underOdds,
       isPlayoff: i > (gameCount * 0.9),
       starHomeInjured,
       starAwayInjured,
@@ -485,7 +762,6 @@ export function runBacktest(strategy: Strategy): BacktestResponse {
         }
       }
     } else if (strategy.betType === 'spread') {
-      odds = -110;
       const hSpread = game.homeSpread;
       const aSpread = -hSpread;
       if (strategy.sideSelection === 'home') {
@@ -552,13 +828,20 @@ export function runBacktest(strategy: Strategy): BacktestResponse {
         }
       }
     } else if (strategy.betType === 'totals') {
-      odds = -110;
       const totalPoints = game.homeScore + game.awayScore;
       if (strategy.sideSelection === 'over') {
         shouldBet = true; betPlacedText = `Over ${game.overUnder}`; isWinOutcome = totalPoints > game.overUnder ? 'win' : totalPoints < game.overUnder ? 'loss' : 'push';
       } else if (strategy.sideSelection === 'under') {
         shouldBet = true; betPlacedText = `Under ${game.overUnder}`; isWinOutcome = totalPoints < game.overUnder ? 'win' : totalPoints > game.overUnder ? 'loss' : 'push';
       }
+    }
+
+    if (shouldBet && strategy.betType === 'spread') {
+      // Spread and total prices move with the line, so read the posted price
+      // for whichever side the selection above actually took.
+      odds = betPlacedText.startsWith(game.homeTeam) ? game.homeSpreadOdds : game.awaySpreadOdds;
+    } else if (shouldBet && strategy.betType === 'totals') {
+      odds = betPlacedText.startsWith('Over') ? game.overOdds : game.underOdds;
     }
 
     if (shouldBet) {
@@ -627,8 +910,68 @@ export function runBacktest(strategy: Strategy): BacktestResponse {
   }
 
   const summary: BacktestSummary = {
-    sport: strategy.sport, startYear: strategy.startYear, endYear: strategy.endYear, totalBets, wonBets, lostBets, pushedBets, winRate: parseFloat(winRate.toFixed(2)), totalWagered: parseFloat(totalWagered.toFixed(2)), totalReturn: parseFloat(totalReturn.toFixed(2)), netProfit: parseFloat(netProfit.toFixed(2)), roi: parseFloat(roi.toFixed(2)), avgOdds: parseFloat(avgOdds.toFixed(3)), maxDrawdown: parseFloat(maxDrawdown.toFixed(2)), maxDrawdownPercent: (peakBankroll > 0 ? (maxDrawdown / peakBankroll) * 100 : 0), kellyPercentage, finalBankroll: parseFloat(currentBankroll.toFixed(2))
+    sport: strategy.sport, startYear: strategy.startYear, endYear: strategy.endYear, totalBets, wonBets, lostBets, pushedBets, winRate: parseFloat(winRate.toFixed(2)), totalWagered: parseFloat(totalWagered.toFixed(2)), totalReturn: parseFloat(totalReturn.toFixed(2)), netProfit: parseFloat(netProfit.toFixed(2)), roi: parseFloat(roi.toFixed(2)), avgOdds: parseFloat(avgOdds.toFixed(3)), maxDrawdown: parseFloat(maxDrawdown.toFixed(2)), maxDrawdownPercent: parseFloat((peakBankroll > 0 ? (maxDrawdown / peakBankroll) * 100 : 0).toFixed(2)), kellyPercentage, finalBankroll: parseFloat(currentBankroll.toFixed(2))
   };
 
   return { summary, profitHistory, games: simulatedGames.slice(-250) };
+}
+/* ------------------------------------------------------------------ *
+ * Market regression
+ *
+ * The whole point of the model above is that the book's hold is the only
+ * edge in the data. If a naive strategy ever turns profitable again, the
+ * line and the score have drifted apart and the simulator is teaching
+ * the opposite of what it should. `npm run check:market` runs this.
+ * ------------------------------------------------------------------ */
+
+export interface MarketDiagnostic {
+  sport: SportType;
+  betType: BetType;
+  sideSelection: SideSelectionType;
+  bets: number;
+  winRate: number;
+  roi: number;
+}
+
+/** Naive, filter-free strategies — every one of them should just pay the vig. */
+const DIAGNOSTIC_CASES: { betType: BetType; sideSelection: SideSelectionType }[] = [
+  { betType: 'moneyline', sideSelection: 'home' },
+  { betType: 'moneyline', sideSelection: 'away' },
+  { betType: 'moneyline', sideSelection: 'favorites' },
+  { betType: 'moneyline', sideSelection: 'underdogs' },
+  { betType: 'spread', sideSelection: 'home' },
+  { betType: 'spread', sideSelection: 'away' },
+  { betType: 'spread', sideSelection: 'favorites' },
+  { betType: 'spread', sideSelection: 'underdogs' },
+  { betType: 'totals', sideSelection: 'over' },
+  { betType: 'totals', sideSelection: 'under' },
+];
+
+export function marketDiagnostics(startYear = 2000, endYear = 2025): MarketDiagnostic[] {
+  const out: MarketDiagnostic[] = [];
+  for (const sport of ['NFL', 'NBA', 'MLB', 'NHL'] as SportType[]) {
+    for (const testCase of DIAGNOSTIC_CASES) {
+      const { summary } = runBacktest({
+        sport,
+        startYear,
+        endYear,
+        betType: testCase.betType,
+        sideSelection: testCase.sideSelection,
+        streakFilter: 'any',
+        streakTarget: 'bet_team',
+        starPlayerFilter: 'any',
+        unitSize: 100,
+        startingBankroll: 10000,
+      });
+      out.push({
+        sport,
+        betType: testCase.betType,
+        sideSelection: testCase.sideSelection,
+        bets: summary.totalBets,
+        winRate: summary.winRate,
+        roi: summary.roi,
+      });
+    }
+  }
+  return out;
 }

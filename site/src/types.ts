@@ -13,6 +13,10 @@ export interface Game {
   overUnder: number;  // Over/under threshold, e.g., 47.5
   homeMoneyline: number; // American odds format, e.g., -150 or +130
   awayMoneyline: number;
+  homeSpreadOdds: number;  // Price on each side of the spread. Books move the
+  awaySpreadOdds: number;  // juice when a line sits off the true 50/50 point.
+  overOdds: number;        // Same for the total.
+  underOdds: number;
   isPlayoff: boolean;
   starHomeInjured: boolean; // Simulates missing marquee players
   starAwayInjured: boolean;

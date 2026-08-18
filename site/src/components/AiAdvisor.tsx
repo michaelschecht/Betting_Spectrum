@@ -61,7 +61,7 @@ export default function AiAdvisor({ currentStrategy, onApplyTemplate }: AiAdviso
       role: 'assistant',
       content: `Welcome to the **EdgeFinder Quantitative Advisory Space**! 
 
-I have indexed historical game results, rosters, and moneyline vigs over the past 25 years. 
+I work over the simulator's 26 synthetic seasons, where the book's hold is the only edge in the data — so treat any winning run here as noise, not a system.
 What strategy concept would you like to build? You can outline rules in natural language (e.g. *"Show me the stats of betting home dogs in divisions when coming off consecutive losses"*), ask for optimal sizing, or test custom options.`,
     }
   ]);
