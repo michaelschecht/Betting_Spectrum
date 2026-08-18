@@ -63,6 +63,11 @@ Images/favicon.svg    # archived copy of the app icon (the served icon is site/p
 - `GEMINI_API_KEY` (Gemini advisor) + optional `APP_URL`. Loaded from `site/.env` locally (gitignored), and set
   in the Vercel project's env vars for production. **Never commit `.env`** — advisor stays server-side; do
   not move the key client-side.
+- `ADVISOR_PASSCODE` — **required for the AI advisor to work.** The advisor spends a metered key, so
+  `/api/strategy-advisor` sits behind a shared-passcode session gate (`site/src/server/auth.ts`). If the var
+  is unset the endpoint **fails closed** with `503` and the advisor panel renders as unavailable; every other
+  tool is unaffected. Optional `ADVISOR_SECRET` signs session cookies — when unset it is derived from the
+  passcode, so rotating the passcode invalidates all sessions.
 
 ## Conventions
 
