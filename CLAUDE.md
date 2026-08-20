@@ -16,7 +16,8 @@ tool is roughly *one registry entry + one page*.
 
 ## Stack & hosting
 
-- **Vite + React 19 + TS**, Tailwind v4 (`@tailwindcss/vite`), Recharts + D3, `@google/genai` (Gemini).
+- **Vite + React 19 + TS**, Tailwind v4 (`@tailwindcss/vite`), Recharts + D3, `@google/genai` (Gemini),
+  `zod` (request validation, server-side only — keep it out of the client bundle).
 - **The entire web app lives in `site/`.** The repo root holds only docs/archives (`README.md`,
   `CLAUDE.md`, `Data/`, `Docs/`, `Images/`, `Versions/`) — nothing app-related. Run all app commands
   (`npm install`, `npm run dev`, `npm run build`, `vercel …`) from **inside `site/`**.
@@ -39,7 +40,10 @@ site/                 # ← the whole web app (Vercel Root Directory = site)
     pages/Home.tsx    # hub landing = tile grid, maps over tools.ts
     BacktesterApp.tsx # the Backtest Simulator (mounted at /backtester)
     components/        # Backtester UI (Header, StrategyBuilder, ResultsDashboard, …)
-    server/            # backtest / espn / advisor logic — imported by BOTH server.ts and api/
+    server/            # backtest / espn / advisor logic + strategySchema.ts (Zod request
+                       #   validation) — imported by BOTH server.ts and api/
+    strategyBounds.ts  # the numeric limits the schema enforces; no imports, so the strategy
+                       #   form can clamp to them without pulling Zod into the client bundle
     dataGenerator.ts, types.ts
   api/                # Vercel serverless: backtest.ts, espn-scoreboard.ts, strategy-advisor.ts
   public/spectrum/    # the original Edge Spectrum Plotly viz, served static at /spectrum/index.html
@@ -72,6 +76,11 @@ Images/favicon.svg    # archived copy of the app icon (the served icon is site/p
 ## Conventions
 
 - Strict TS; functional components + hooks; Tailwind; match existing `site/src/` style.
+  Note that `tsconfig.json` does **not** set `strict`/`strictNullChecks`, so some type-level
+  idioms silently do not work — notably, narrowing a discriminated union on a boolean field
+  (`if (r.ok) …`) does not narrow, and Zod infers every output field as optional.
+- Untrusted request bodies get a Zod schema in `site/src/server/`, reached through the shared
+  `src/server/` module both entry points already call — not re-checked in each route handler.
 - The static `site/public/spectrum/` page is self-contained (Plotly + fonts via CDN, data inlined) — leave it as-is;
   a future task may port it into a React route.
 - Local dev (from `site/`): `npm run dev` (binds `PORT`, default 3001). `npm run build` = `vite build` + esbuild-bundle `server.ts`.

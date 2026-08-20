@@ -12,7 +12,6 @@ import {
   logout,
   sessionStatus,
 } from './src/server/auth';
-import { Strategy } from './src/types';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -25,11 +24,11 @@ app.use(express.json());
 // 1. Backtest Engine Endpoint
 app.post('/api/backtest', (req, res) => {
   try {
-    const result = runValidatedBacktest(req.body as Strategy);
+    const result = runValidatedBacktest(req.body);
     res.json(result);
   } catch (error: any) {
     if (error instanceof BadRequestError) {
-      return res.status(400).json({ error: error.message });
+      return res.status(400).json({ error: error.message, details: error.details });
     }
     console.error('Error running backtest:', error);
     res.status(500).json({ error: 'Internal Backtest Engine Error' });

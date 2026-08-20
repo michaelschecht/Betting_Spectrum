@@ -118,14 +118,46 @@ Still outstanding on the same endpoint:
   a shared passcode being over-used.
 - A daily spend ceiling / kill switch.
 
-### 2b. No input validation on `/api/backtest` 🔴
+### 2b. No input validation on `/api/backtest` ✅ — fixed 2026-08-20
 
-`runValidatedBacktest` checks only that fields are *present*, not that they are sane.
-`{ startYear: 1900, endYear: 3000 }` generates ~1,100 seasons inside a serverless function —
-a timeout, or a cheap denial-of-wallet.
+`runValidatedBacktest` checked only that five fields were *present*, not that they were sane.
 
-**Fix:** Zod schemas in `src/server/`, shared by client and server. Clamp years to 2000–2025,
-validate every enum, cap `unitSize` and `startingBankroll`.
+**Measured, not estimated.** Running the engine directly over the range the endpoint would have
+accepted:
+
+| Seasons requested | Wall clock | Peak heap | Bets |
+|---|---:|---:|---:|
+| 26 (the largest legal range) | 0.18 s | 30 MB | 20,800 |
+| 100 | 0.54 s | 110 MB | 80,000 |
+| 300 | 1.88 s | 264 MB | 240,000 |
+| **1,101** (`1900`–`3000`) | **7.58 s** | **925 MB** | 880,800 |
+
+A 1 GB serverless function does not survive the last row, and the request costs the sender
+nothing — a denial-of-wallet with a two-field body.
+
+**Fix (shipped).** A Zod schema, `site/src/server/strategySchema.ts`, reached through the same
+`runValidatedBacktest` both entry points already call:
+
+- Seasons bounded to 2000–2025 (the only years `getTeamHistoricalRating` has era ratings for),
+  integers, and `endYear >= startYear`.
+- All six enums — sport, bet type, side selection, streak filter, streak target, star-player
+  filter — checked against the unions in `types.ts`. A `SameMembers` type assertion fails
+  `tsc --noEmit` if a union gains a member and the schema does not, so the two cannot drift.
+- `unitSize` and `startingBankroll` required, finite, positive, capped at $1M / $1B.
+- Odds, spread and total filters bounded, and each min/max pair required to be ordered.
+- `betType: 'totals'` must pair with `over`/`under` and nothing else may — that mismatch used to
+  return a silent zero-bet run rather than an error.
+- Unknown keys stripped, so the object handed to the engine is exactly the known shape.
+
+The 1900–3000 payload is now a `400` in **~5 ms**, with one message per bad field; the client
+renders those verbatim instead of "Simulation server returned an error response."
+
+**Bounds are shared, Zod is not.** The numbers live in `site/src/strategyBounds.ts`, which has no
+imports, and `StrategyBuilder` clamps every control to them — so the form cannot build a request
+the endpoint would reject, and the year dropdown is generated from `MIN_SEASON`/`MAX_SEASON`
+rather than a hardcoded 26. Importing the schema itself into the client was tried first and cost
+**+57 KB (+14 KB gzipped)** on the single chunk section 3 wants to shrink, for a check the server
+already reports identically; the split keeps the client cost at +0.34 KB.
 
 ### 2c. No cache headers on `/api/espn-scoreboard` 🟠
 
@@ -273,7 +305,7 @@ variables for production. Optionally set `ADVISOR_SECRET` to a long random strin
 
 | Phase | Work |
 |---|---|
-| **Now** | ✅ Auth gate on the advisor · ✅ section 1 generator bias + regression guard · ✅ "Live Data Engine" → "Simulated Data" · Zod-validate `/api/backtest` · ESPN cache headers · wire `check:market` into CI |
+| **Now** | ✅ Auth gate on the advisor · ✅ section 1 generator bias + regression guard · ✅ "Live Data Engine" → "Simulated Data" · ✅ Zod-validate `/api/backtest` · ESPN cache headers · wire `check:market` into CI |
 | **Next** | Client-side sim in a Web Worker (removes the API round-trip entirely) · lazy routes · URL-serialised strategy + share cards · Vitest + GitHub Actions CI |
 | **Then** | Significance panel + Monte Carlo fan chart + staking grid · odds / vig / parlay calculators |
 | **After** | CLV tracker (needs a DB) · real historical odds for one sport · Edge Audit · quiz |
