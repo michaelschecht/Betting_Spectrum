@@ -38,9 +38,12 @@ This document tracks the milestones, architectural upgrades, and feature additio
 - [x] 🟠 **Stop calling simulated data live.** "Live Data Engine" → "Simulated Data", a real hold readout wired to `MARKET_OVERROUND`, quarter-Kelly labelled honestly, and the advisor told in its system prompt that it is reading a simulation.
 - [x] 🟡 **Round `maxDrawdownPercent`** — it was leaking raw float digits (`-44.244008790…`) into the KPI tile.
 
+**Shipped 2026-08-20**
+
+- [x] 🔴 **Validate `/api/backtest` input.** The handler checked that five fields were *present*, never that they were sane. `{ startYear: 1900, endYear: 3000 }` was accepted verbatim — measured directly, 1,101 simulated seasons, **7.6 s of CPU and 925 MB of peak heap** for one request, which is an OOM inside a 1 GB serverless function and free to send. A Zod schema in `src/server/strategySchema.ts` now bounds every field: seasons to 2000–2025, all six enums checked, `unitSize` and `startingBankroll` positive and capped, min/max filter pairs required to be ordered, and a `totals` ↔ `over`/`under` consistency rule that previously produced a silent zero-bet run. Unknown keys are stripped. That payload is now a `400` in **~5 ms**, carrying a per-field reason the UI shows verbatim. The bounds live in `src/strategyBounds.ts` and the strategy form clamps to them, so the UI cannot build a request the endpoint would reject.
+
 **Open**
 
-- [ ] 🔴 **Validate `/api/backtest` input.** Presence is checked; sanity is not. `{ startYear: 1900, endYear: 3000 }` generates ~1,100 seasons inside a serverless function — a timeout, or a cheap denial-of-wallet. Zod schemas in `src/server/`, shared by client and server: clamp years to 2000–2025, validate every enum, cap `unitSize` and `startingBankroll`.
 - [ ] 🟠 **Rate-limit the advisor and cap spend.** The passcode stops strangers; it does not stop a shared passcode being over-used. Per-IP / per-session limiting (Upstash or Vercel KV) plus a daily spend ceiling and kill switch.
 - [ ] 🟠 **ESPN API caching.** `Cache-Control: s-maxage=30, stale-while-revalidate=120` on `/api/espn-scoreboard` — currently every visitor hits ESPN's undocumented endpoint directly. One line.
 - [ ] 🟠 **CI on every PR.** GitHub Action running `tsc --noEmit`, `npm run check:market`, and `npm run build`. Pairs with the existing `mike_desktop` → PR → `main` flow, and stops the Phase 2 bias fix from silently regressing.

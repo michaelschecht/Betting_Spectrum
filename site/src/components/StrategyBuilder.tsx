@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { Strategy, SportType, BetType, SideSelectionType } from '../types';
 import {
+  MIN_SEASON, MAX_SEASON, MAX_UNIT_SIZE, MAX_STARTING_BANKROLL,
+  MAX_AMERICAN_ODDS, MAX_SPREAD_POINTS, MAX_TOTAL_POINTS,
+} from '../strategyBounds';
+import {
   Play, AlertTriangle, Lightbulb, Sliders, DollarSign,
   ChevronDown, Globe, Target, Wallet, ArrowRight, Activity,
 } from 'lucide-react';
@@ -49,6 +53,15 @@ function Select({
     </div>
   );
 }
+
+// Keep every numeric control inside the bounds the backtest schema enforces,
+// so the form can never build a strategy the endpoint will reject.
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+/** Optional screening filter: empty input clears it, anything else is bounded. */
+const boundedOptional = (raw: string, min: number, max: number, parse: (v: string) => number) =>
+  raw === '' ? undefined : clamp(parse(raw) || 0, min, max);
 
 // Tiny field label
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -159,8 +172,8 @@ export default function StrategyBuilder({ currentStrategy, onChange, onRunBackte
     });
   };
 
-  // Keep year options clean
-  const years = Array.from({ length: 26 }, (_, i) => 2000 + i);
+  // Keep year options clean — driven by the schema's season bounds
+  const years = Array.from({ length: MAX_SEASON - MIN_SEASON + 1 }, (_, i) => MIN_SEASON + i);
 
   // Live, human-readable summary of the active configuration
   const seasonLabel = currentStrategy.startYear === currentStrategy.endYear
@@ -362,8 +375,10 @@ export default function StrategyBuilder({ currentStrategy, onChange, onRunBackte
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
               <input
                 type="number"
+                min={1}
+                max={MAX_STARTING_BANKROLL}
                 value={currentStrategy.startingBankroll}
-                onChange={(e) => updateField('startingBankroll', Math.max(1, parseInt(e.target.value) || 0))}
+                onChange={(e) => updateField('startingBankroll', clamp(parseInt(e.target.value) || 0, 1, MAX_STARTING_BANKROLL))}
                 className="h-9 w-full pl-8 pr-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono font-medium tabular-nums text-zinc-200 hover:border-zinc-700 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all duration-200"
               />
             </div>
@@ -375,8 +390,10 @@ export default function StrategyBuilder({ currentStrategy, onChange, onRunBackte
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-sky-400" />
               <input
                 type="number"
+                min={1}
+                max={MAX_UNIT_SIZE}
                 value={currentStrategy.unitSize}
-                onChange={(e) => updateField('unitSize', Math.max(1, parseInt(e.target.value) || 0))}
+                onChange={(e) => updateField('unitSize', clamp(parseInt(e.target.value) || 0, 1, MAX_UNIT_SIZE))}
                 className="h-9 w-full pl-8 pr-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono font-medium tabular-nums text-sky-300 hover:border-zinc-700 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all duration-200"
               />
             </div>
@@ -445,8 +462,10 @@ export default function StrategyBuilder({ currentStrategy, onChange, onRunBackte
                 <input
                   type="number"
                   placeholder="e.g. -150 or 110"
-                  value={currentStrategy.oddsMin || ''}
-                  onChange={(e) => updateField('oddsMin', e.target.value ? parseInt(e.target.value) : undefined)}
+                  min={-MAX_AMERICAN_ODDS}
+                  max={MAX_AMERICAN_ODDS}
+                  value={currentStrategy.oddsMin ?? ''}
+                  onChange={(e) => updateField('oddsMin', boundedOptional(e.target.value, -MAX_AMERICAN_ODDS, MAX_AMERICAN_ODDS, parseInt))}
                   className="h-9 px-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono tabular-nums text-zinc-300 placeholder:text-zinc-600 hover:border-zinc-700 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all duration-200"
                 />
               </div>
@@ -455,8 +474,10 @@ export default function StrategyBuilder({ currentStrategy, onChange, onRunBackte
                 <input
                   type="number"
                   placeholder="e.g. +250 or -110"
-                  value={currentStrategy.oddsMax || ''}
-                  onChange={(e) => updateField('oddsMax', e.target.value ? parseInt(e.target.value) : undefined)}
+                  min={-MAX_AMERICAN_ODDS}
+                  max={MAX_AMERICAN_ODDS}
+                  value={currentStrategy.oddsMax ?? ''}
+                  onChange={(e) => updateField('oddsMax', boundedOptional(e.target.value, -MAX_AMERICAN_ODDS, MAX_AMERICAN_ODDS, parseInt))}
                   className="h-9 px-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono tabular-nums text-zinc-300 placeholder:text-zinc-600 hover:border-zinc-700 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all duration-200"
                 />
               </div>
@@ -469,8 +490,10 @@ export default function StrategyBuilder({ currentStrategy, onChange, onRunBackte
                       type="number"
                       step="0.5"
                       placeholder="e.g. 3.0"
-                      value={currentStrategy.spreadMin || ''}
-                      onChange={(e) => updateField('spreadMin', e.target.value ? parseFloat(e.target.value) : undefined)}
+                      min={0}
+                      max={MAX_SPREAD_POINTS}
+                      value={currentStrategy.spreadMin ?? ''}
+                      onChange={(e) => updateField('spreadMin', boundedOptional(e.target.value, 0, MAX_SPREAD_POINTS, parseFloat))}
                       className="h-9 px-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono tabular-nums text-zinc-300 placeholder:text-zinc-600 hover:border-zinc-700 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all duration-200"
                     />
                   </div>
@@ -480,8 +503,10 @@ export default function StrategyBuilder({ currentStrategy, onChange, onRunBackte
                       type="number"
                       step="0.5"
                       placeholder="e.g. 7.5"
-                      value={currentStrategy.spreadMax || ''}
-                      onChange={(e) => updateField('spreadMax', e.target.value ? parseFloat(e.target.value) : undefined)}
+                      min={0}
+                      max={MAX_SPREAD_POINTS}
+                      value={currentStrategy.spreadMax ?? ''}
+                      onChange={(e) => updateField('spreadMax', boundedOptional(e.target.value, 0, MAX_SPREAD_POINTS, parseFloat))}
                       className="h-9 px-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono tabular-nums text-zinc-300 placeholder:text-zinc-600 hover:border-zinc-700 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all duration-200"
                     />
                   </div>
@@ -496,8 +521,10 @@ export default function StrategyBuilder({ currentStrategy, onChange, onRunBackte
                       type="number"
                       step="0.5"
                       placeholder="e.g. 42.5"
-                      value={currentStrategy.totalMin || ''}
-                      onChange={(e) => updateField('totalMin', e.target.value ? parseFloat(e.target.value) : undefined)}
+                      min={0}
+                      max={MAX_TOTAL_POINTS}
+                      value={currentStrategy.totalMin ?? ''}
+                      onChange={(e) => updateField('totalMin', boundedOptional(e.target.value, 0, MAX_TOTAL_POINTS, parseFloat))}
                       className="h-9 px-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono tabular-nums text-zinc-300 placeholder:text-zinc-600 hover:border-zinc-700 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all duration-200"
                     />
                   </div>
@@ -507,8 +534,10 @@ export default function StrategyBuilder({ currentStrategy, onChange, onRunBackte
                       type="number"
                       step="0.5"
                       placeholder="e.g. 54.5"
-                      value={currentStrategy.totalMax || ''}
-                      onChange={(e) => updateField('totalMax', e.target.value ? parseFloat(e.target.value) : undefined)}
+                      min={0}
+                      max={MAX_TOTAL_POINTS}
+                      value={currentStrategy.totalMax ?? ''}
+                      onChange={(e) => updateField('totalMax', boundedOptional(e.target.value, 0, MAX_TOTAL_POINTS, parseFloat))}
                       className="h-9 px-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono tabular-nums text-zinc-300 placeholder:text-zinc-600 hover:border-zinc-700 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all duration-200"
                     />
                   </div>

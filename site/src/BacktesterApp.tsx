@@ -43,7 +43,13 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error('Simulation server returned an error response.');
+        const body = await response.json().catch(() => null);
+        const details: string[] = Array.isArray(body?.details) ? body.details : [];
+        throw new Error(
+          details.length
+            ? `Invalid strategy: ${details.join('; ')}`
+            : body?.error || 'Simulation server returned an error response.',
+        );
       }
 
       const data: BacktestResponse = await response.json();
