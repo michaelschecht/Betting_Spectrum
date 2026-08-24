@@ -6,6 +6,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sport = (req.query.sport as string) || 'NFL';
     const date = (req.query.date as string) || ''; // YYYYMMDD
     const result = await fetchEspnScoreboard(sport, date);
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
     res.json(result);
   } catch (error) {
     console.error('Error fetching ESPN scoreboard:', error);

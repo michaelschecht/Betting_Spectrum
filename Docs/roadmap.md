@@ -42,11 +42,14 @@ This document tracks the milestones, architectural upgrades, and feature additio
 
 - [x] 🔴 **Validate `/api/backtest` input.** The handler checked that five fields were *present*, never that they were sane. `{ startYear: 1900, endYear: 3000 }` was accepted verbatim — measured directly, 1,101 simulated seasons, **7.6 s of CPU and 925 MB of peak heap** for one request, which is an OOM inside a 1 GB serverless function and free to send. A Zod schema in `src/server/strategySchema.ts` now bounds every field: seasons to 2000–2025, all six enums checked, `unitSize` and `startingBankroll` positive and capped, min/max filter pairs required to be ordered, and a `totals` ↔ `over`/`under` consistency rule that previously produced a silent zero-bet run. Unknown keys are stripped. That payload is now a `400` in **~5 ms**, carrying a per-field reason the UI shows verbatim. The bounds live in `src/strategyBounds.ts` and the strategy form clamps to them, so the UI cannot build a request the endpoint would reject.
 
+**Shipped 2026-08-24**
+
+- [x] 🟠 **ESPN API caching.** `Cache-Control: s-maxage=30, stale-while-revalidate=120` on `/api/espn-scoreboard`, so Vercel's CDN absorbs repeat visitors instead of every one of them hitting ESPN's undocumented endpoint directly.
+- [x] 🟠 **CI on every PR.** `.github/workflows/ci.yml` runs `npm run lint` (`tsc --noEmit`), `npm run check:market`, and `npm run build` on every PR and every push to `main`. The market check is the guard that stops the Phase 2 bias fix from silently regressing.
+
 **Open**
 
 - [ ] 🟠 **Rate-limit the advisor and cap spend.** The passcode stops strangers; it does not stop a shared passcode being over-used. Per-IP / per-session limiting (Upstash or Vercel KV) plus a daily spend ceiling and kill switch.
-- [ ] 🟠 **ESPN API caching.** `Cache-Control: s-maxage=30, stale-while-revalidate=120` on `/api/espn-scoreboard` — currently every visitor hits ESPN's undocumented endpoint directly. One line.
-- [ ] 🟠 **CI on every PR.** GitHub Action running `tsc --noEmit`, `npm run check:market`, and `npm run build`. Pairs with the existing `mike_desktop` → PR → `main` flow, and stops the Phase 2 bias fix from silently regressing.
 - [ ] 🟡 **Debounce and abort backtest requests.** `BacktesterApp.tsx` refires on every keystroke in `unitSize` / `startingBankroll` with no `AbortController`, so a slow earlier response can overwrite a newer one.
 - [ ] 🟡 **Stop silently truncating the ledger.** `runBacktest` returns `simulatedGames.slice(-250)`; a 7,000-bet run shows 250 with no indication. Label it, and add CSV export of the full ledger.
 - [ ] 🟡 **Methodology page.** Explain the generator, the DU/CED framework, and the Spectrum's data sources. Honest framing is an asset here, not a weakness.
