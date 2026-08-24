@@ -2,7 +2,7 @@
 
 This document tracks the milestones, architectural upgrades, and feature additions for the **Edge Spectrum** multi-tool hub. It is the single sequenced list — everything from the full code review has been folded in here and ordered by what has to happen first.
 
-> **Companion docs:** [Ideas/hub_improvement_plan.md](Ideas/hub_improvement_plan.md) holds the detail and evidence behind the Phase 2 items (measurements, root causes, before/after tables). [Ideas/improvement_ideas.md](Ideas/improvement_ideas.md) is the feature backlog for the Edge Spectrum visualization specifically.
+> **Companion docs:** [Ideas/hub_improvement_plan.md](Ideas/hub_improvement_plan.md) holds the detail and evidence behind the Phase 2 items (measurements, root causes, before/after tables). [Ideas/improvement_ideas.md](Ideas/improvement_ideas.md) is the feature backlog for the Edge Spectrum visualization specifically. [Ideas/complexity_audit.md](Ideas/complexity_audit.md) is a repo-wide over-engineering audit (2026-08-24) — ~410 lines and 4 dependencies removable, ranked by size of cut.
 
 ---
 
