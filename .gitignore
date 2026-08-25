@@ -22,3 +22,6 @@ coverage/
 .claude/skills/canvas-design/
 
 .mcp.json
+
+# Playwright MCP scratch (page snapshots, console logs) from browser-verifying a change.
+.playwright-mcp/

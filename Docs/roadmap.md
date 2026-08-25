@@ -47,10 +47,13 @@ This document tracks the milestones, architectural upgrades, and feature additio
 - [x] 🟠 **ESPN API caching.** `Cache-Control: s-maxage=30, stale-while-revalidate=120` on `/api/espn-scoreboard`, so Vercel's CDN absorbs repeat visitors instead of every one of them hitting ESPN's undocumented endpoint directly.
 - [x] 🟠 **CI on every PR.** `.github/workflows/ci.yml` runs `npm run lint` (`tsc --noEmit`), `npm run check:market`, and `npm run build` on every PR and every push to `main`. The market check is the guard that stops the Phase 2 bias fix from silently regressing.
 
+**Shipped 2026-08-25**
+
+- [x] 🟡 **Debounce and abort backtest requests.** The auto-rerun effect in `BacktesterApp.tsx` fired on every keystroke in `unitSize` / `startingBankroll` — measured in the browser, typing a three-digit unit size sent **6 requests for 6 keystrokes**, each a full multi-season simulation. Worse, nothing tied a response to the run that asked for it: with the first request stalled 2 s and a second issued behind it, the stale result landed last and won — the ledger rendered **MLB games while the sport selector said NHL**. The effect now debounces 300 ms and each run holds an `AbortController` that supersedes the previous one, with the late-response guard repeated after `response.json()` so a reply that resolves after being superseded is dropped rather than rendered. Same measurement after the fix: **1 request for 6 keystrokes**, and the stale MLB response is discarded while NHL stays on screen. The spinner and the error banner are both suppressed for a superseded run, so an abort never surfaces as "Error executing backtest". The manual **Execute Backtest** button still fires immediately — it bypasses the debounce.
+
 **Open**
 
 - [ ] 🟠 **Rate-limit the advisor and cap spend.** The passcode stops strangers; it does not stop a shared passcode being over-used. Per-IP / per-session limiting (Upstash or Vercel KV) plus a daily spend ceiling and kill switch.
-- [ ] 🟡 **Debounce and abort backtest requests.** `BacktesterApp.tsx` refires on every keystroke in `unitSize` / `startingBankroll` with no `AbortController`, so a slow earlier response can overwrite a newer one.
 - [ ] 🟡 **Stop silently truncating the ledger.** `runBacktest` returns `simulatedGames.slice(-250)`; a 7,000-bet run shows 250 with no indication. Label it, and add CSV export of the full ledger.
 - [ ] 🟡 **Methodology page.** Explain the generator, the DU/CED framework, and the Spectrum's data sources. Honest framing is an asset here, not a weakness.
 - [ ] 🟡 **Responsible gambling footer.** 1-800-GAMBLER and international equivalents, an age note, and a "not financial advice" line on advisor output. Matters the moment this takes payments (Phase 6).
