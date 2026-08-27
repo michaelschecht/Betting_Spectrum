@@ -1,3 +1,5 @@
+<a id="readme-top"></a>
+
 # Edge Spectrum 🟢
 
 <p align="center">
@@ -7,13 +9,25 @@
 </p>
 
 <p align="center">
-  <em>A unified multi-tool hub for sports betting, investing, gambling, and odds analysis. Compare expected returns across time horizons, backtest sports wagering strategies over 25 years of game data, and analyze edges.</em>
+  <em>A unified multi-tool hub for sports betting, investing, gambling, and odds analysis.<br>Compare expected returns across time horizons, backtest sports wagering strategies over 25 simulated seasons, and analyze mathematical edges.</em>
+</p>
+
+<p align="center">
+  <a href="Docs/README.md"><strong>Explore the docs »</strong></a>
+</p>
+
+<p align="center">
+  <a href="https://edge-spectrum.mikesailab.com">View Live Hub</a>
+  ·
+  <a href="https://github.com/michaelschecht/edge-spectrum/issues">Report Bug</a>
+  ·
+  <a href="https://github.com/michaelschecht/edge-spectrum/issues">Request Feature</a>
 </p>
 
 <p align="center">
   <a href="https://edge-spectrum.mikesailab.com"><img src="https://img.shields.io/badge/Live_Deployment-edge--spectrum.mikesailab.com-0284c7?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Deployment"></a>
-  <a href="Docs/change_log.md"><img src="https://img.shields.io/badge/Changelog-V19_Hub-8b5cf6?style=for-the-badge" alt="Changelog Version"></a>
-  <a href="Docs/improvement_ideas.md"><img src="https://img.shields.io/badge/Roadmap-Ideas-10b981?style=for-the-badge" alt="Roadmap/Ideas"></a>
+  <img src="https://img.shields.io/badge/status-active-2ea44f?style=for-the-badge" alt="Status: Active">
+  <a href="Docs/roadmap.md"><img src="https://img.shields.io/badge/plan-ROADMAP-8B5CF6?style=for-the-badge" alt="Roadmap"></a>
 </p>
 
 <p align="center">
@@ -31,7 +45,7 @@
 **Edge Spectrum** is an interactive playground for exploring mathematical edges. It brings together two core analytical applications:
 
 1. **The Edge Spectrum Expected-Return Visualizer** (`/spectrum/`): Compares expected cumulative returns across **187 financial, investing, trading, and gambling activities** over **7 time horizons** (1 Bet to 10 Years), standardized using the **DU/CED framework**.
-2. **The Backtest Simulator** (`/backtester`): Backtests sports wagering strategies across **25 years of MLB, NFL, NHL, and NBA games**, providing ROI diagnostics, equity curves, live ESPN scores, and an **AI Strategy Advisor** powered by Gemini.
+2. **The Backtest Simulator** (`/backtester`): Backtests sports wagering strategies across **25 simulated seasons of MLB, NFL, NHL, and NBA games** (2000–2025), providing ROI diagnostics, equity curves, live ESPN scores, and an **AI Strategy Advisor** powered by Gemini.
 
 ---
 
@@ -52,7 +66,7 @@ Served as a static page at `/spectrum/index.html` (internally routes to `public/
 ### 2. The Sports Wagering Backtester
 Served inside the SPA React shell at `/backtester`.
 
-- **25 Years of Historical Odds & Results:** In-depth database for MLB, NFL, NHL, and NBA.
+- **25 Simulated Historical Seasons:** Calibrated power-rating simulation for MLB, NFL, NHL, and NBA (2000–2025) with empirical distribution-based market pricing.
 - **Custom Strategy Builder:** Define wager filters based on home/away status, bookmaker odds (favorites/underdogs), and custom edge margins.
 - **Position Sizing Models:** Standard flat betting vs. Kelly Criterion sizing (Full/Fractional).
 - **Interactive Reports:** Analyze cumulative profit curves, win rates, ROI, Kelly diagnostics, and drawdowns.
