@@ -22,3 +22,7 @@ coverage/
 .claude/skills/canvas-design/
 
 .mcp.json
+
+# Archived analysis & scratch (local only, not in remote repo)
+.archive/
+Docs/_archive/

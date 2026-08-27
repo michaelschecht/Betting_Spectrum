@@ -81,8 +81,9 @@ Images/favicon.svg    # archived copy of the app icon (the served icon is site/p
   (`if (r.ok) …`) does not narrow, and Zod infers every output field as optional.
 - Untrusted request bodies get a Zod schema in `site/src/server/`, reached through the shared
   `src/server/` module both entry points already call — not re-checked in each route handler.
-- The static `site/public/spectrum/` page is self-contained (Plotly + fonts via CDN, data inlined) — leave it as-is;
-  a future task may port it into a React route.
+- The static `site/public/spectrum/` page is self-contained (Plotly + fonts via CDN) for serving;
+  however, its mathematical models, DU/CED metrics, and dataset are subject to code, math, and data audits.
+  A future task may port it into a React route.
 - Local dev (from `site/`): `npm run dev` (binds `PORT`, default 3001). `npm run build` = `vite build` + esbuild-bundle `server.ts`.
 
 ## Branch workflow (PR flow)
