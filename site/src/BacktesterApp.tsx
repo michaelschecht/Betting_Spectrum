@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Header from './components/Header';
 import StrategyBuilder from './components/StrategyBuilder';
 import ResultsDashboard from './components/ResultsDashboard';
@@ -8,6 +8,9 @@ import AiAdvisor from './components/AiAdvisor';
 import EspnFeed from './components/EspnFeed';
 import { Strategy, BacktestResponse, StrategyTemplate } from './types';
 import { AlertCircle, RotateCcw, LineChart, Table, Info, BookOpen } from 'lucide-react';
+
+// Keystroke-to-request grace period for the auto-rerun effect.
+const RERUN_DEBOUNCE_MS = 300;
 
 export default function App() {
   // Initial starting strategy parameters
@@ -29,8 +32,17 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'analytics' | 'espn'>('analytics');
 
-  // Trigger backtest
-  const runBacktest = async (targetStrategy: Strategy = strategy) => {
+  // The one in-flight backtest. A newer run aborts the older one so a slow
+  // response can never land after — and overwrite — a fresher one.
+  const inFlight = useRef<AbortController | null>(null);
+
+  // Trigger backtest. Stable identity (no captured state) so the debounce
+  // effect below can hold on to it without re-arming its timer every render.
+  const runBacktest = useCallback(async (targetStrategy: Strategy) => {
+    inFlight.current?.abort();
+    const controller = new AbortController();
+    inFlight.current = controller;
+
     setIsLoading(true);
     setError(null);
     try {
@@ -40,6 +52,7 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(targetStrategy),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -53,18 +66,28 @@ export default function App() {
       }
 
       const data: BacktestResponse = await response.json();
+      // Superseded while we were parsing — the newer run owns the UI now.
+      if (controller.signal.aborted) return;
       setResult(data);
     } catch (err: any) {
+      if (controller.signal.aborted) return;
       console.error(err);
       setError(err?.message || 'Error executing backtest. Please retry.');
     } finally {
-      setIsLoading(false);
+      // Leave the spinner up for whichever run superseded us.
+      if (!controller.signal.aborted) setIsLoading(false);
     }
-  };
+  }, []);
 
-  // Run backtests automatically whenever any core parameter or filter changes
+  // Abort whatever is still running when the backtester unmounts.
+  useEffect(() => () => inFlight.current?.abort(), []);
+
+  // Run backtests automatically whenever any core parameter or filter changes.
+  // Debounced, because `unitSize` / `startingBankroll` are free-text number
+  // inputs that fire this on every keystroke.
   useEffect(() => {
-    runBacktest(strategy);
+    const timer = setTimeout(() => runBacktest(strategy), RERUN_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
   }, [
     strategy.sport,
     strategy.startYear,

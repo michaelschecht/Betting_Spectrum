@@ -166,12 +166,31 @@ Every visitor hits ESPN's undocumented endpoint directly — rate-limit risk and
 **Fix:** `Cache-Control: s-maxage=30, stale-while-revalidate=120`. One line.
 (Already listed as Phase 2 in the roadmap.)
 
-### 2d. Race conditions in the backtester 🟡
+### 2d. Race conditions in the backtester ✅ — fixed 2026-08-25
 
-`BacktesterApp.tsx` refires the backtest on **every keystroke** in `unitSize` / `startingBankroll`,
-with no debounce and no `AbortController` — a slow earlier response can overwrite a newer one.
+`BacktesterApp.tsx` refired the backtest on **every keystroke** in `unitSize` / `startingBankroll`,
+with no debounce and no `AbortController` — a slow earlier response could overwrite a newer one.
 
-**Fix:** debounce ~300ms, abort in-flight requests on a new run.
+**Measured, in the browser, against the dev server** (Playwright driving `/backtester`, `fetch`
+wrapped to count `/api/backtest` calls):
+
+| Scenario | Before | After |
+|---|---|---|
+| Type a 3-digit unit size (6 keystrokes, 40 ms apart) | **6 requests**, each a full multi-season sim | **1 request** |
+| Initial page load under `<StrictMode>` (double-mounts effects) | 1 request | 1 request |
+| Switch sport to MLB, first response stalled 2 s, switch to NHL 700 ms later | ledger renders **MLB** — the stale result lands last and wins, while the selector reads NHL | ledger renders **NHL**; the late MLB response is discarded |
+
+The middle row is why the debounce timer is armed rather than the fetch: StrictMode's second
+effect invocation clears the pending timer before it fires, so the double-mount costs nothing.
+
+**Fix (shipped):** the auto-rerun effect debounces `RERUN_DEBOUNCE_MS` (300 ms) and each run owns
+an `AbortController` held in a ref; starting a run aborts the previous one. The
+`controller.signal.aborted` check is repeated *after* `await response.json()`, because a response
+can finish parsing after it has been superseded — that is the path that produced the MLB/NHL
+mismatch, and an abort on the socket alone does not close it. A superseded run also skips
+`setIsLoading(false)` and `setError(...)`, so the spinner stays with whichever run now owns the UI
+and an abort never surfaces to the user as "Error executing backtest". The manual **Execute
+Backtest** button calls `runBacktest` directly and is deliberately not debounced.
 
 ### 2e. Silent truncation of the bet ledger 🟡
 
@@ -305,8 +324,8 @@ variables for production. Optionally set `ADVISOR_SECRET` to a long random strin
 
 | Phase | Work |
 |---|---|
-| **Now** | ✅ Auth gate on the advisor · ✅ section 1 generator bias + regression guard · ✅ "Live Data Engine" → "Simulated Data" · ✅ Zod-validate `/api/backtest` · ESPN cache headers · wire `check:market` into CI |
-| **Next** | Client-side sim in a Web Worker (removes the API round-trip entirely) · lazy routes · URL-serialised strategy + share cards · Vitest + GitHub Actions CI |
+| **Now** | ✅ Auth gate on the advisor · ✅ section 1 generator bias + regression guard · ✅ "Live Data Engine" → "Simulated Data" · ✅ Zod-validate `/api/backtest` · ✅ ESPN cache headers · ✅ `check:market` wired into CI · ✅ debounce + abort the backtester (2d) · label the truncated ledger (2e) · rate-limit the advisor (2a) |
+| **Next** | Client-side sim in a Web Worker (removes the API round-trip entirely) · lazy routes · URL-serialised strategy + share cards · Vitest |
 | **Then** | Significance panel + Monte Carlo fan chart + staking grid · odds / vig / parlay calculators |
 | **After** | CLV tracker (needs a DB) · real historical odds for one sport · Edge Audit · quiz |
 

@@ -23,6 +23,9 @@ coverage/
 
 .mcp.json
 
+# Playwright MCP scratch (page snapshots, console logs) from browser-verifying a change.
+.playwright-mcp/
+
 # Archived analysis & scratch (local only, not in remote repo)
 .archive/
 Docs/_archive/

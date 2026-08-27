@@ -97,17 +97,15 @@ Phase 7: Public Launch ⚪
      - Correct root `README.md` and app copy to state "25 Years of Simulated Historical Seasons" matching `tools.ts`.
      - Update `CLAUDE.md` to clarify that `site/public/spectrum/` is self-contained for serving but subject to mathematical and dataset audits.
 
-6. [ ] 🟡 **Action 2.6 — Debounce & Abort Backtest Race Conditions (Audit D7)**
-   - **Problem:** `BacktesterApp.tsx` fires requests on raw input changes without debouncing or request cancellation, allowing stale responses from long simulations to overwrite newer results.
-   - **Implementation:**
-     - Add 300ms debounce on numeric inputs (`unitSize`, `startingBankroll`).
-     - Implement `AbortController` or monotonic request IDs to ignore superseded responses.
+6. [x] 🟡 **Action 2.6 — Debounce & Abort Backtest Race Conditions (Audit D7):**
+   - **Implementation:** Added 300 ms debounce timer on the auto-rerun `useEffect` in `BacktesterApp.tsx` and an in-flight `AbortController` ref that aborts superseded runs. Repeated the abort check after `response.json()` to discard late-arriving responses, and suppressed error banners / spinner drops on aborts.
 
 7. [ ] 🟠 **Action 2.7 — AI Advisor Rate Limiting & Spend Caps**
    - **Problem:** Passcode authentication protects against unauthenticated users but does not limit total requests or cost from authenticated sessions.
    - **Implementation:**
      - Add IP/session rate limiting (e.g. 10 requests per hour per session).
      - Implement a hard daily spend ceiling with a fallback 503 response.
+
 
 ---
 
