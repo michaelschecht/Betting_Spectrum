@@ -17,8 +17,10 @@ Built as a standalone HTML app using Plotly.js 2.32.0. Rich hover tooltips show:
 ### 3. 🔶 Risk-Adjusted Overlay (Dual Axis) — *Partially implemented*
 Volatility data is included in the tooltip for each activity but not yet shown as a visual overlay or second axis on the chart. The grouped peer comparison in tooltips (V6+) provides some relative context. A true dual-axis variance overlay or scatter plot view remains unbuilt.
 
-### 4. ✅ "How Long Until You're Broke?" Metric — *Implemented in V18*
-For negative-edge activities, show how many bets/spins/hands until a $1,000 bankroll is expected to reach $0. Toggle via Insights dropdown ("Ruin Calculator ($1K)"). Gambling uses DU/CED framework: decisions to ruin = bankroll / (bet × |edge|/100), then converts to time via DU/day. Investing uses compound decay: years to lose 90% = ln(0.1) / ln(1 + edge/100). Tooltip shows: decision count, time estimate, bet size, expected loss per decision, a color-coded urgency meter (log-scale), and explanatory summary. Positive-edge activities show "N/A — Positive Edge ✓".
+### 4. ✅ "How Long Until You're Broke?" Metric — *Implemented in V18, lost in V19, restored and promoted in V20*
+For negative-edge activities, show how many bets/spins/hands until the bankroll is expected to reach $0. Gambling uses the DU/CED framework: decisions to ruin = 100 / (CED% × |edge|%), then converts to time via DU/day. Investing uses compound decay: years to lose 90% = ln(0.1) / ln(1 + edge/100). Tooltip shows: decision count, time estimate, stake per wager, expected loss per wager, an urgency meter, and an explanatory summary. Positive-edge activities show "No ruin point".
+
+**V19 regression:** the rewrite dropped the implementation — `showRuin` was still assigned but read nowhere and the `.tt-ruin-box` styles sat unused, so the "Ruin Probability" toggle did nothing. **V20** restored it, renamed the toggle to **Ruin Point Overlay**, turned it **on by default**, and promoted the marker out of the tooltip and onto the primary chart: a dotted −100% floor line labelled `RUIN — TOTAL CAPITAL LOSS`, an ✕ per ruined activity, and a **Ruined By Horizon** stat card.
 
 ### 5. ⬜ Confidence Intervals (Box-and-Whisker)
 Instead of a single bar, show a range. S&P 500 1-month has +0.8% expected but could be -10% to +10%. A single blackjack hand is -0.5% expected but is -100% to +150%. Shows that edge and variance are two different things.
@@ -42,8 +44,10 @@ Tooltips now include grouped comparisons showing where the hovered activity rank
 ### 10. ⬜ "What Most People Think vs. Reality" Column
 Show the perceived edge next to the actual edge in a two-column format. People think parlays are fun low-risk bets; they don't realize they're paying 20%+ vig. People think day trading is a path to wealth; the data says it's worse than roulette.
 
-### 11. ✅ Compounding Over Repetitions — *Implemented in V4+ via Time Horizons*
-The 5-horizon time selector (1 Bet → 10 Years / 6,250 Bets) shows exactly how returns compound or erode over repetitions. Compound model for investing, linear model for gambling — both demonstrating the law of large numbers. The animated transition between horizons visually shows the divergence. A dedicated "two curves diverging" animated comparison view could still enhance this further.
+### 11. ✅ Compounding Over Repetitions — *Implemented in V4+ via Time Horizons, corrected in V20*
+The 7-horizon time selector (Single Event → 10 Years) shows exactly how returns compound or erode over repetitions. Compound model for investing, flat-stake linear model for gambling — both demonstrating the law of large numbers. The animated transition between horizons visually shows the divergence. A dedicated "two curves diverging" animated comparison view could still enhance this further.
+
+**V20 correction:** the two models were never comparable on one axis and had been sharing one since V3, when the −100% floor on gambling was removed. The linear gambling number is now named for what it is (**Expected Turnover Cost**, its own axis, deliberately unbounded), and the shared chart plots **Return on Capital**, floored at −100% for both models. See §8 of [hub_improvement_plan.md](hub_improvement_plan.md).
 
 ### 12. ✅ Fee-Adjusted Investment Returns — *Implemented in V9*
 Layer toggle shows 8 fee-adjusted entries: S&P 500 after 0.03% index fee, 0.35% robo-advisor, 0.60% target-date, 1% advisor, 1.5% active fund, 2-and-20 hedge fund, 2-and-20 underperforming, and bond fund after 1% fee. Green-outlined bars appear alongside raw data. Reveals that a 2-and-20 hedge fund turns a +10% return into +6.4%.
@@ -176,3 +180,5 @@ User inputs their actual betting/investing activities and amounts. The tool calc
 | V16 | Streamlined to 155 entries (removed Options, Trading, Poker Elite Pro), Casino+Poker off by default, adaptive Y-axis + tick formatting, edge_analysis11.md |
 | V17 | Combined dataset (V10+V11), 166 data points, Precious Metals category, edge_analysis12.md |
 | V18 | #4 (Ruin Calculator) — "How Long Until You're Broke?" Insights toggle with $1K bankroll, decision count, time-to-ruin, urgency meter |
+| V19 | Layout/tooltip rewrite. Undocumented at the time, and it silently dropped the working implementations of #4 (Ruin Calculator) and #17 (Dollar Cost) — both toggles remained in the UI doing nothing |
+| V20 | Roadmap Action 2.1 — metric split into Return on Capital (floored at −100%), Expected Turnover Cost (own axis, unbounded) and Ruin Point; #4 restored and promoted onto the primary chart; per-row horizon units; `npm run check:spectrum` regression guard. #17 remains broken |

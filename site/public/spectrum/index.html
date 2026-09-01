@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edge Spectrum | V19</title>
+    <title>Edge Spectrum | V20</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -235,6 +235,8 @@
         }
         .chart-title { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
         .chart-title::before { content: ''; width: 4px; height: 12px; background: var(--accent); border-radius: 2px; }
+        .chart-sub { font-size: 0.6rem; font-weight: 500; color: var(--text-dim); margin-top: 4px; padding-left: 12px; }
+        .section-note { font-size: 0.55rem; line-height: 1.5; color: var(--text-dim); font-weight: 500; margin-top: 8px; }
 
         #chart { flex: 1; min-height: 0; width: 100%; }
 
@@ -345,9 +347,18 @@
         </div>
 
         <div class="sidebar-section">
+            <h3 class="section-label">Measure</h3>
+            <div class="pill-grid" id="metricGrid">
+                <button class="pbtn active" data-m="roc">ON CAPITAL</button>
+                <button class="pbtn" data-m="turn">TURNOVER COST</button>
+            </div>
+            <p class="section-note" id="metricNote"></p>
+        </div>
+
+        <div class="sidebar-section">
             <h3 class="section-label">Time Horizon</h3>
             <div class="pill-grid" id="timeGrid">
-                <button class="pbtn" data-t="1du">1 DECISION</button>
+                <button class="pbtn" data-t="1du">SINGLE EVENT</button>
                 <button class="pbtn" data-t="1day">1 DAY</button>
                 <button class="pbtn" data-t="1wk">1 WEEK</button>
                 <button class="pbtn" data-t="1mo">1 MONTH</button>
@@ -355,6 +366,12 @@
                 <button class="pbtn" data-t="5yr">5 YEARS</button>
                 <button class="pbtn" data-t="10yr">10 YEARS</button>
             </div>
+            <p class="section-note">
+                A horizon is elapsed calendar time, not a count of decisions. Games accumulate
+                wagers at their own frequency; held assets simply stay held. &ldquo;Single event&rdquo;
+                means <strong>one wager</strong> for a game and <strong>one trading day</strong>
+                for a held asset &mdash; the two are not the same unit.
+            </p>
         </div>
 
         <div class="sidebar-section" id="layerSection">
@@ -377,7 +394,7 @@
                 <div class="dd-menu" id="insMenu">
                     <div class="dd-item toggle" data-ins="dca">Dollar Cost ($100/wk)</div>
                     <div class="dd-item toggle" data-ins="risk">Addiction Modeling</div>
-                    <div class="dd-item toggle" data-ins="ruin">Ruin Probability</div>
+                    <div class="dd-item toggle" data-ins="ruin">Ruin Point Overlay</div>
                 </div>
             </div>
         </div>
@@ -386,27 +403,30 @@
     <main class="content">
         <div class="stats-row">
             <div class="stat-card">
-                <span class="stat-label">Total Assets</span>
+                <span class="stat-label" id="mCL">Total Assets</span>
                 <span class="stat-value" id="mC">0</span>
             </div>
             <div class="stat-card">
-                <span class="stat-label">Peak Performer</span>
+                <span class="stat-label" id="mBL">Peak Performer</span>
                 <span class="stat-value" id="mB" style="color: var(--success)">—</span>
             </div>
             <div class="stat-card">
-                <span class="stat-label">Maximum Drain</span>
+                <span class="stat-label" id="mWL">Maximum Drain</span>
                 <span class="stat-value" id="mW" style="color: var(--danger)">—</span>
             </div>
             <div class="stat-card">
-                <span class="stat-label">Variance Spread</span>
+                <span class="stat-label" id="mSL">Ruined By Horizon</span>
                 <span class="stat-value" id="mS" style="color: var(--warning)">—</span>
             </div>
         </div>
 
         <div class="chart-container">
             <div class="chart-header">
-                <div class="chart-title" id="mTitle">Cumulative Expected Return (%)</div>
-                <div style="font-size: 0.6rem; color: var(--text-dim); font-weight: 700;">LIVE CALCULATION &bull; V19.0</div>
+                <div>
+                    <div class="chart-title" id="mTitle">Return on Capital (%)</div>
+                    <div class="chart-sub" id="mSub"></div>
+                </div>
+                <div style="font-size: 0.6rem; color: var(--text-dim); font-weight: 700;">LIVE CALCULATION &bull; V20.0</div>
             </div>
             <div id="chart"></div>
         </div>
@@ -416,22 +436,60 @@
 <div class="tt" id="tt"></div>
 
 <footer class="footer">
-    <div>V19 &mdash; THE EDGE SPECTRUM &bull; MARCH 2026</div>
-    <div style="letter-spacing: 0.05em; opacity: 0.5;">GAMBLING: LINEAR DECAY &bull; INVESTING: COMPOUND APPRECIATION</div>
+    <div>V20 &mdash; THE EDGE SPECTRUM &bull; AUGUST 2026</div>
+    <div style="letter-spacing: 0.05em; opacity: 0.5;">RETURN ON CAPITAL FLOORS AT &minus;100% &bull; TURNOVER COST DOES NOT</div>
 </footer>
 
 <script>
 // ══════════════════════════
 // MATH & CONSTANTS
 // ══════════════════════════
-const gambRet = (edge, du, ced, days) => du * days * (ced / 100) * edge;
-const invRet = (ann, yr) => (Math.pow(1 + ann/100, yr) - 1) * 100;
+// Three explicit measures replace the single "Expected Return" that used to mix them.
+//
+//   expectedTurnoverCost — cumulative expected P&L as a % of the STARTING bankroll,
+//     at constant turnover (flat stakes, never resized). Unbounded below: it is what
+//     you lose in total if you keep reloading, and it reached -136,875% on 10-year
+//     slots. A turnover cost only exists where there is turnover, so it is defined
+//     for games only.
+//   returnOnCapital — what happens to the one bankroll you actually brought. Held
+//     assets compound; games accrue the same flat-stake loss but STOP at -100%,
+//     because a bankroll cannot go below zero. This is the primary comparison and it
+//     is the only measure that is unit-compatible across the whole spectrum.
+//   ruinPoint — the decision count at which those two diverge, i.e. where cumulative
+//     expected loss equals the whole bankroll. For a held asset with a negative
+//     return, compounding never reaches zero, so the analogue is time to lose 90%.
+//
+// The pairing is exact by construction: returnOnCapital hits its -100% floor for a
+// game precisely when the horizon contains ruinPoint decisions. check-spectrum.ts
+// asserts that across every row and horizon.
+const RUIN_FLOOR = -100;
+
+const decisionCount = (du, h) => h === '1du' ? 1 : du * HZ_DAYS[h];
+const expectedTurnoverCost = (edge, du, ced, h) => decisionCount(du, h) * (ced / 100) * edge;
+const investRet = (ann, yr) => (Math.pow(1 + ann/100, yr) - 1) * 100;
+const returnOnCapital = (r, h) => Math.max(RUIN_FLOOR, r.m === 'i'
+    ? investRet(r.a, I_Y[h])
+    : expectedTurnoverCost(r.e, r.du, r.ced, h));
+
+// Decisions until the flat-stake bankroll is expected to be gone. Null when nothing
+// is being drained — a positive edge, or a held asset that is not losing value.
+const ruinDecisions = r => (r.m === 'g' && r.e < 0) ? 100 / ((r.ced / 100) * Math.abs(r.e)) : null;
+// Held assets erode geometrically and never literally reach zero; report the years
+// to lose 90% instead, which is the honest analogue.
+const decayYears90 = r => (r.m === 'i' && r.a < 0) ? Math.log(0.1) / Math.log(1 + r.a/100) : null;
 
 const HZ = ['1du','1day','1wk','1mo','1yr','5yr','10yr'];
-const HZ_LBL = {'1du':'1 DECISION','1day':'1 DAY','1wk':'1 WEEK','1mo':'1 MONTH','1yr':'1 YEAR','5yr':'5 YEARS','10yr':'10 YEARS'};
+const HZ_LBL = {'1du':'SINGLE EVENT','1day':'1 DAY','1wk':'1 WEEK','1mo':'1 MONTH','1yr':'1 YEAR','5yr':'5 YEARS','10yr':'10 YEARS'};
 const HZ_DAYS = {'1du':0,'1day':1,'1wk':7,'1mo':30,'1yr':365,'5yr':1825,'10yr':3650};
 const I_Y = {'1du':1/252,'1day':1/252,'1wk':1/52,'1mo':1/12,'1yr':1,'5yr':5,'10yr':10};
 const DCA_AMT = {'1du':100,'1day':100,'1wk':100,'1mo':430,'1yr':5200,'5yr':26000,'10yr':52000};
+
+// The "single event" horizon means different things to a game and to a held asset, so
+// it is never labelled generically on a row that knows which it is.
+const rowHzLabel = (r, h) => h !== '1du' ? HZ_LBL[h] : (r.m === 'g' ? '1 WAGER' : '1 TRADING DAY');
+const horizonBasis = (r, h) => r.m === 'g'
+    ? fmtCount(decisionCount(r.du, h)) + (decisionCount(r.du, h) === 1 ? ' wager' : ' wagers')
+    : (h === '1du' || h === '1day') ? '1 trading day held' : fmtNum(I_Y[h]) + ' years held';
 
 const ALL_CATS = ["Cash & Savings","Stock Market","Bonds","Real Estate","Cryptocurrency","Collectibles","Precious Metals","Insurance & Annuities","Sports Betting","Casino Gambling","Poker & Skill-Based","Prediction Markets","Lottery"];
 const CC = {
@@ -669,86 +727,166 @@ const AR_LBL = {1:'MINIMAL',2:'LOW',3:'MEDIUM',4:'HIGH',5:'EXTREME'};
 // PRE-COMPUTE
 // ══════════════════════════
 const D = RAW.map(r => {
-    const v = {};
+    const v = {};   // returnOnCapital — the primary, floored measure
+    const t = {};   // expectedTurnoverCost — games only, deliberately unfloored
     HZ.forEach(h => {
-        if (r.m === 'g') v[h] = h === '1du' ? (r.ced / 100) * r.e : gambRet(r.e, r.du, r.ced, HZ_DAYS[h]);
-        else v[h] = invRet(r.a, I_Y[h]);
+        v[h] = returnOnCapital(r, h);
+        t[h] = r.m === 'g' ? expectedTurnoverCost(r.e, r.du, r.ced, h) : null;
     });
-    return {...r, v, ar: AR_DEFAULT[r.cat] || 2};
+    const rd = ruinDecisions(r);
+    return {...r, v, t, rd, ruinDays: rd === null ? null : rd / r.du, decay90: decayYears90(r), ar: AR_DEFAULT[r.cat] || 2};
 });
 
 // ══════════════════════════
 // STATE & CONTROLS
 // ══════════════════════════
+const METRICS = {
+    roc: {
+        title: 'Return on Capital (%)',
+        sub: 'What one bankroll does. Floored at &minus;100% &mdash; a bar on the floor is a bankroll that is gone.',
+        note: 'Return on the capital you actually staked, floored at &minus;100%. The only measure that compares a held asset to a wagering activity on one axis.',
+        get: (d, h) => d.v[h],
+        labels: ['Activities Shown','Peak Performer','Maximum Drain','Ruined By Horizon'],
+    },
+    turn: {
+        title: 'Expected Turnover Cost (% of starting bankroll)',
+        sub: 'Wagering activities only. Flat stakes, reloaded on ruin &mdash; deliberately unbounded, so it is never plotted beside a capital return.',
+        note: 'Cumulative expected loss at constant turnover, as a multiple of the starting bankroll. Passes &minus;100% because it assumes you keep reloading.',
+        get: (d, h) => d.t[h],
+        labels: ['Wagering Activities','Cheapest Turnover','Costliest Turnover','Median Cost'],
+    },
+};
+
 let catSet = new Set(ALL_CATS.filter(c => c !== "Casino Gambling" && c !== "Poker & Skill-Based"));
-let timeF = '1yr', layerF = 'raw';
-let showDCA = false, showRisk = false, showRuin = false;
+let timeF = '1yr', layerF = 'raw', metricF = 'roc';
+let showDCA = false, showRisk = false, showRuin = true;
 
 const isAllCats = () => catSet.size === ALL_CATS.length;
+const val = d => METRICS[metricF].get(d, timeF);
+const isRuined = d => d.rd !== null && d.rd <= decisionCount(d.du, timeF);
 
 function getFilteredData() {
     let d = D.filter(x => catSet.has(x.cat));
+    // Turnover cost is a property of turnover; held assets have none, so they are not
+    // shown on that axis rather than being given a fabricated value.
+    if (metricF === 'turn') d = d.filter(x => x.m === 'g');
     if (layerF !== 'all') {
         if (layerF === 'raw') d = d.filter(x => x.ly === 'raw');
         else d = d.filter(x => x.ly === 'raw' || x.ly === layerF);
     }
-    return d.sort((a,b) => b.v[timeF] - a.v[timeF]);
+    return d.sort((a,b) => val(b) - val(a));
 }
 
 // ══════════════════════════
 // UI UPDATES
 // ══════════════════════════
 function formatValue(v) {
+    if (v === null || !isFinite(v)) return '—';
     const s = v >= 0 ? '+' : '';
     if (Math.abs(v) >= 1000) return s + (v/1000).toFixed(1) + 'K%';
     return s + v.toFixed(2) + '%';
 }
+function fmtNum(n) { return n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2); }
+function fmtCount(n) {
+    if (n >= 1000) return Math.round(n).toLocaleString();
+    return Number.isInteger(n) ? String(n) : fmtNum(n);
+}
+
+// Decisions to ruin, rendered as a duration a human can picture.
+function fmtDuration(days) {
+    if (days < 1) return (days * 24).toFixed(1) + ' hours';
+    if (days < 60) return fmtNum(days) + ' days';
+    if (days < 730) return fmtNum(days / 30.44) + ' months';
+    return fmtNum(days / 365) + ' years';
+}
 
 function updateStats() {
     const data = getFilteredData();
-    const best = data[0], worst = data[data.length-1];
+    const m = METRICS[metricF];
+    const vals = data.map(val).filter(v => v !== null && isFinite(v));
+    ['mCL','mBL','mWL','mSL'].forEach((id, i) => document.getElementById(id).textContent = m.labels[i]);
     document.getElementById('mC').textContent = data.length;
-    document.getElementById('mB').textContent = best ? formatValue(best.v[timeF]) : '—';
-    document.getElementById('mW').textContent = worst ? formatValue(worst.v[timeF]) : '—';
-    const spread = best && worst ? Math.abs(best.v[timeF] - worst.v[timeF]) : 0;
-    document.getElementById('mS').textContent = spread.toFixed(0) + ' pts';
+    document.getElementById('mB').textContent = vals.length ? formatValue(Math.max(...vals)) : '—';
+    document.getElementById('mW').textContent = vals.length ? formatValue(Math.min(...vals)) : '—';
+
+    if (metricF === 'roc') {
+        const ruined = data.filter(isRuined).length;
+        document.getElementById('mS').textContent = ruined + ' of ' + data.length;
+    } else {
+        const sorted = [...vals].sort((a,b) => a-b);
+        document.getElementById('mS').textContent = sorted.length ? formatValue(sorted[Math.floor(sorted.length/2)]) : '—';
+    }
+    document.getElementById('mTitle').textContent = m.title;
+    document.getElementById('mSub').innerHTML = m.sub;
+    document.getElementById('metricNote').innerHTML = m.note;
 }
 
 function renderChart() {
     const data = getFilteredData();
     const names = data.map(d => d.n);
-    const vals = data.map(d => d.v[timeF]);
-    
-    const colors = data.map(d => {
-        if (d.v[timeF] >= 0) return 'rgba(34, 197, 94, 0.7)';
-        return 'rgba(239, 68, 68, 0.7)';
-    });
+    const vals = data.map(val);
 
-    const trace = {
+    const colors = data.map(d => val(d) >= 0 ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)');
+
+    const traces = [{
         type: 'bar', x: names, y: vals, customdata: data,
-        marker: { 
+        marker: {
             color: colors,
             line: { color: 'rgba(255,255,255,0.1)', width: 1 }
         },
         hoverinfo: 'none'
-    };
+    }];
 
+    // The ruin marker rides on the primary chart rather than hiding in a tooltip: every
+    // ✕ is an activity whose bankroll is expected to be gone before this horizon ends.
+    const ruined = metricF === 'roc' && showRuin ? data.filter(isRuined) : [];
+    if (ruined.length) {
+        traces.push({
+            type: 'scatter', mode: 'markers',
+            x: ruined.map(d => d.n), y: ruined.map(() => RUIN_FLOOR),
+            customdata: ruined,
+            marker: { symbol: 'x', size: 7, color: '#ef4444', line: { color: '#fca5a5', width: 1 } },
+            hoverinfo: 'none', cliponaxis: false
+        });
+    }
+
+    const finite = vals.filter(v => v !== null && isFinite(v));
+    const lo = finite.length ? Math.min(...finite) : 0;
+    const hi = finite.length ? Math.max(...finite) : 0;
+    const pad = (hi - lo) * 0.06 || 1;
+    // The floor is drawn only once something has actually reached it. Pinning the axis
+    // to -100% at every horizon would flatten the short-horizon views the same way the
+    // unbounded turnover numbers used to flatten the long ones.
+    const onFloor = metricF === 'roc' && lo <= RUIN_FLOOR + 1e-9;
     const layout = {
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor: 'rgba(0,0,0,0)',
         margin: { l: 60, r: 20, t: 30, b: 20 },
         xaxis: { showticklabels: false, showgrid: false, zeroline: false },
-        yaxis: { 
-            gridcolor: 'rgba(255,255,255,0.05)', 
+        yaxis: {
+            gridcolor: 'rgba(255,255,255,0.05)',
             zerolinecolor: 'rgba(251, 191, 36, 0.4)',
             tickfont: { family: 'Geist Mono', size: 10, color: '#71717a' },
-            ticksuffix: '%'
+            ticksuffix: '%',
+            // Total capital loss is the bottom of the world on the primary measure, so
+            // once a bar is there the axis stops just below it rather than letting a
+            // +4,000% ten-year crypto bar dictate how much empty space sits underneath.
+            range: onFloor ? [RUIN_FLOOR - Math.min(pad, 8), hi + pad] : [lo - pad, hi + pad]
         },
         showlegend: false,
-        bargap: 0.15
+        bargap: 0.15,
+        shapes: onFloor ? [{
+            type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: RUIN_FLOOR, y1: RUIN_FLOOR,
+            line: { color: 'rgba(239, 68, 68, 0.45)', width: 1, dash: 'dot' }
+        }] : [],
+        annotations: onFloor ? [{
+            xref: 'paper', x: 0, xanchor: 'left', yref: 'y', y: RUIN_FLOOR, yanchor: 'bottom',
+            text: 'RUIN — TOTAL CAPITAL LOSS', showarrow: false,
+            font: { family: 'Geist Mono', size: 8, color: 'rgba(239, 68, 68, 0.8)' }
+        }] : []
     };
 
-    Plotly.newPlot('chart', [trace], layout, { displayModeBar: false, responsive: true });
+    Plotly.newPlot('chart', traces, layout, { displayModeBar: false, responsive: true });
 
     document.getElementById('chart').on('plotly_hover', ev => {
         showTT(ev.points[0].customdata, ev.event);
@@ -763,16 +901,62 @@ const ttEl = document.getElementById('tt');
 function showTT(item, e) {
     let hzHTML = '';
     HZ.forEach(h => {
+        // A held asset's "single event" IS one trading day, so listing both would print
+        // the same number twice under two names — the conflation this fix exists to end.
+        if (h === '1du' && item.m === 'i') return;
         const active = h === timeF ? 'active' : '';
-        const val = item.v[h];
+        const v = item.v[h];
         hzHTML += `
             <div class="tt-hz-item ${active}">
-                <span class="tt-hz-lbl">${HZ_LBL[h]}</span>
-                <span class="tt-hz-val" style="color:${val>=0?'var(--success)':'var(--danger)'}">${formatValue(val)}</span>
+                <span class="tt-hz-lbl">${rowHzLabel(item, h)}</span>
+                <span class="tt-hz-val" style="color:${v>=0?'var(--success)':'var(--danger)'}">${formatValue(v)}</span>
             </div>`;
     });
 
+    // The three measures, side by side and named, so the floored and unfloored numbers
+    // can never again be mistaken for the same quantity.
+    const roc = item.v[timeF];
+    const turnover = item.t[timeF];
+    let measuresHTML = `
+        <div class="tt-row">
+            <span class="tt-row-label">Return on capital${roc <= RUIN_FLOOR ? ' <span style="color:var(--danger)">(at floor)</span>' : ''}</span>
+            <span class="tt-row-val" style="color:${roc>=0?'var(--success)':'var(--danger)'}">${formatValue(roc)}</span>
+        </div>
+        <div class="tt-row">
+            <span class="tt-row-label">Expected turnover cost</span>
+            <span class="tt-row-val" style="color:${turnover===null?'var(--text-dim)':turnover>=0?'var(--success)':'var(--danger)'}">${turnover === null ? 'n/a — held, not wagered' : formatValue(turnover)}</span>
+        </div>
+        <div class="tt-row">
+            <span class="tt-row-label">Horizon basis</span>
+            <span class="tt-row-val">${horizonBasis(item, timeF)}</span>
+        </div>`;
+
     let insightHTML = '';
+    if (showRuin) {
+        let ruinHTML;
+        if (item.rd !== null) {
+            const pct = Math.max(4, Math.min(100, (decisionCount(item.du, timeF) / item.rd) * 100));
+            ruinHTML = `
+                <div class="tt-ruin-val">${fmtCount(item.rd)} wagers &rarr; $0</div>
+                <div class="tt-row"><span class="tt-row-label">Time to ruin at ${fmtNum(item.du)}/day</span><span class="tt-row-val">${fmtDuration(item.ruinDays)}</span></div>
+                <div class="tt-row"><span class="tt-row-label">Staked per wager</span><span class="tt-row-val">${fmtNum(item.ced)}% of bankroll</span></div>
+                <div class="tt-row"><span class="tt-row-label">Expected loss per wager</span><span class="tt-row-val">${formatValue((item.ced/100) * item.e)}</span></div>
+                <div class="tt-meter"><div class="tt-meter-fill" style="width:${pct}%;background:${pct>=100?'var(--danger)':'var(--warning)'}"></div></div>
+                <div style="font-size:0.6rem;color:var(--text-muted)">${pct >= 100 ? 'Bankroll is expected to be gone before this horizon ends.' : fmtNum(pct) + '% of the way to ruin at this horizon.'}</div>`;
+        } else if (item.decay90 !== null) {
+            ruinHTML = `
+                <div class="tt-ruin-val">${fmtNum(item.decay90)} years &rarr; &minus;90%</div>
+                <div style="font-size:0.6rem;color:var(--text-muted)">A held position erodes geometrically and never literally reaches $0; this is the time to lose nine tenths of it.</div>`;
+        } else {
+            ruinHTML = `<div class="tt-ruin-val" style="color:var(--success)">No ruin point</div>
+                <div style="font-size:0.6rem;color:var(--text-muted)">Positive expectation &mdash; capital is not being drained.</div>`;
+        }
+        insightHTML += `
+            <div class="tt-section">
+                <div class="tt-sec-label">Ruin Point</div>
+                <div class="tt-ruin-box">${ruinHTML}</div>
+            </div>`;
+    }
     if (showRisk) {
         insightHTML += `
             <div class="tt-section">
@@ -795,7 +979,11 @@ function showTT(item, e) {
         </div>
         <div class="tt-body">
             <div class="tt-section">
-                <div class="tt-sec-label">Performance Horizons</div>
+                <div class="tt-sec-label">At ${rowHzLabel(item, timeF)}</div>
+                ${measuresHTML}
+            </div>
+            <div class="tt-section">
+                <div class="tt-sec-label">Return on Capital by Horizon</div>
                 <div class="tt-hz-grid">${hzHTML}</div>
             </div>
             ${insightHTML}
@@ -874,6 +1062,17 @@ function init() {
         };
     });
 
+    // Metric Buttons
+    document.querySelectorAll('[data-m]').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('[data-m]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            metricF = btn.dataset.m;
+            updateStats();
+            renderChart();
+        };
+    });
+
     // Layer Buttons
     document.querySelectorAll('[data-l]').forEach(btn => {
         btn.onclick = () => {
@@ -894,9 +1093,13 @@ function init() {
             if (ins === 'dca') showDCA = !showDCA;
             if (ins === 'risk') showRisk = !showRisk;
             if (ins === 'ruin') showRuin = !showRuin;
+            updateStats();
             renderChart();
         };
     });
+
+    // The ruin overlay is on by default — it is the point of the primary chart, not an extra.
+    document.querySelector('[data-ins="ruin"]').classList.toggle('on', showRuin);
 
     // Dropdowns
     document.querySelectorAll('.dd-btn').forEach(btn => {

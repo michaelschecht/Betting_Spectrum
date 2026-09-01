@@ -33,27 +33,33 @@ $$\text{Expected Value Drag / Gain} = \text{Frequency (DU)} \times \text{Exposur
 
 A foundational insight from our codebase audit is that **investing returns** and **wagering turnover costs** represent mathematically distinct quantities that cannot be plotted on a single unconstrained axis:
 
-### Metric A: Compounded Return on Capital ($R_{\text{cap}}$)
-For buy-and-hold investing and compound assets, return measures growth on a fixed initial stake:
+### Metric A: Return on Capital ($R_{\text{cap}}$)
+What happens to the single bankroll actually committed. For buy-and-hold assets this is compound growth on a fixed initial stake; for wagering it is the same flat-stake accrual as Metric B, **stopped at the point the bankroll is gone**:
 
-$$R_{\text{cap}}(t) = \left( \left(1 + \frac{r_{\text{ann}}}{100}\right)^t - 1 \right) \times 100$$
+$$R_{\text{cap}}(t) = \max\left(-100,\; \begin{cases} \left( \left(1 + \frac{r_{\text{ann}}}{100}\right)^t - 1 \right) \times 100 & \text{held asset} \\[4pt] C_{\text{turn}}(t) & \text{wagering activity} \end{cases}\right)$$
 
-- **Lower Bound:** Strictly bounded below by $-100\%$. A complete wipeout of capital (e.g. penny stocks or bankrupt assets) reaches $-100\%$ and ceases further decay because zero capital remains.
+- **Lower Bound:** Strictly bounded below by $-100\%$. A complete wipeout of capital (e.g. penny stocks, or a bankroll drained by house edge) reaches $-100\%$ and ceases further decay because zero capital remains.
+- **This is the primary comparison axis**, and the only one on which a held asset and a wagering activity are the same kind of quantity.
 
 ### Metric B: Cumulative Expected Turnover Cost ($C_{\text{turn}}$)
 For repeated wagering, linear multiplication calculates total expected loss as a percentage of initial bankroll assuming continuous restaking:
 
 $$C_{\text{turn}}(t) = \text{DU} \times \text{Days}(t) \times \left(\frac{\text{CED}}{100}\right) \times E$$
 
-- **Unbounded Nature:** Without an explicit bankroll floor, high-frequency negative-edge activities reach theoretical losses of $-1,000\%$ to $-45,625\%$ over multi-year horizons.
+- **Unbounded Nature:** Without an explicit bankroll floor, high-frequency negative-edge activities reach theoretical losses of $-1,000\%$ to $-136,875\%$ over multi-year horizons. (The worst case in the 187-record dataset is *Slots Tight 85%* at ten years.)
 - **The Physical Interpretation:** These values do not represent a rate of return; they measure **cumulative turnover friction**. A loss beyond $-100\%$ implies that the player replenished their bankroll multiple times after going broke.
+- **Defined only where there is turnover.** A held asset has none, so it carries no value for this metric rather than a fabricated one.
 
 ### Metric C: Ruin Point ($N_{\text{ruin}}$)
-The decision count or elapsed time at which an initial bankroll $B_0$ reaches $0$ under negative drift:
+The decision count at which an initial bankroll $B_0$ reaches $0$ under negative drift:
 
-$$N_{\text{ruin}} \approx \frac{B_0}{\text{Bet Size} \times |E|}$$
+$$N_{\text{ruin}} \approx \frac{B_0}{\text{Bet Size} \times |E|} \;=\; \frac{100}{\left(\frac{\text{CED}}{100}\right) \times |E|}$$
 
-In the platform's visualizers, $R_{\text{cap}}$ is capped at $-100\%$, turnover drag $C_{\text{turn}}$ is presented as a separate volume metric, and the Ruin Point is rendered directly on the timeline.
+The right-hand form is what the visualizer evaluates, expressing bankroll and stake as percentages so no notional dollar amount has to be assumed. A losing **held** asset never literally reaches zero under geometric decay, so its analogue is the time to lose 90%: $t_{90} = \ln(0.1) / \ln(1 + r_{\text{ann}}/100)$.
+
+**These three are consistent by construction.** $C_{\text{turn}}$ passes $-100\%$ at exactly $N_{\text{ruin}}$ decisions, which is exactly where $R_{\text{cap}}$ reaches its floor — so the floored bar and the ruin marker are the same statement made twice. `npm run check:spectrum` asserts that agreement across all 187 records and 7 horizons.
+
+In the platform's visualizers, $R_{\text{cap}}$ is the primary axis and is capped at $-100\%$, turnover drag $C_{\text{turn}}$ is presented on a **separate axis** behind a measure toggle, and the Ruin Point is rendered directly on the primary chart as a floor line and a per-activity marker. Shipped in Spectrum V20 (roadmap Action 2.1, 2026-08-31); before that all three were conflated on one unconstrained axis.
 
 ---
 

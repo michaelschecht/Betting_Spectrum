@@ -40,6 +40,7 @@ Edge Spectrum operates as a multi-tool web application hosted on **Vercel** with
 ## 🧪 Testing & Validation Invariants
 
 - **`npm run check:market`** — Runs all 40 naive wagering strategies across 26 simulated seasons, verifying that realized ROI falls strictly within the realistic bookmaker hold band (−7.0% to −2.5%).
+- **`npm run check:spectrum`** — Evaluates the Spectrum visualizer's own math block and dataset directly out of `site/public/spectrum/index.html` and asserts its metric invariants: `returnOnCapital` never breaches its −100% floor, `expectedTurnoverCost` stays unfloored, the two agree on where ruin falls across all 187 records × 7 horizons, and the `1du` horizon never labels a wager and a trading day identically.
 - **`npm run check:edges`** *(Phase 2)* — Asserts bounds, category counts, and non-regressing provenance citations across all 187 canonical edge records.
 - **`npm run lint`** — TypeScript compilation check (`tsc --noEmit`).
 - **`npm run build`** — Production bundle generation via Vite.

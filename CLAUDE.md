@@ -83,8 +83,14 @@ Images/favicon.svg    # archived copy of the app icon (the served icon is site/p
   `src/server/` module both entry points already call — not re-checked in each route handler.
 - The static `site/public/spectrum/` page is self-contained (Plotly + fonts via CDN) for serving;
   however, its mathematical models, DU/CED metrics, and dataset are subject to code, math, and data audits.
-  A future task may port it into a React route.
+  A future task may port it into a React route. Because it has no build step to hook,
+  **`npm run check:spectrum` reads its inlined `MATH & CONSTANTS` block and `RAW` dataset straight
+  out of the HTML and runs the real functions** — so renaming those section banners, or the exported
+  names the script destructures, breaks the guard. Its three measures are not interchangeable:
+  `returnOnCapital` is floored at −100%, `expectedTurnoverCost` is deliberately not, and they must
+  keep agreeing on `ruinPoint`. Never plot them on one axis again — that was roadmap Action 2.1.
 - Local dev (from `site/`): `npm run dev` (binds `PORT`, default 3001). `npm run build` = `vite build` + esbuild-bundle `server.ts`.
+  CI (`.github/workflows/ci.yml`) runs `lint` → `check:market` → `check:spectrum` → `build` on every PR.
 
 ## Branch workflow (PR flow)
 
