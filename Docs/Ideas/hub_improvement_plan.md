@@ -288,6 +288,108 @@ Cheap to add, and it matters the moment this takes payments.
 
 ---
 
+## ✅ 8. The Spectrum viz plotted two incompatible measures on one axis — fixed 2026-08-31
+
+Roadmap Action 2.1 (Audit D1). The flagship visualization had the same class of defect section 1
+found in the backtester: a number that looked authoritative and was not comparable to the number
+next to it.
+
+### What was wrong
+
+`site/public/spectrum/index.html` computed two things and drew them on one y-axis labelled
+**"Cumulative Expected Return (%)"**:
+
+- `invRet(ann, yr) = ((1 + ann/100)^yr − 1) × 100` — a **compounded return on capital**, naturally
+  bounded below at −100%.
+- `gambRet(edge, du, ced, days) = du × days × (ced/100) × edge` — a **linear turnover cost** at flat
+  stakes off a fixed bankroll, with no floor at all.
+
+A bankroll cannot lose more than itself. `gambRet` was never a return on capital; it was the total
+you lose *if you keep reloading*. Plotting it as one was the error.
+
+Separately, the `1du` horizon button read **"1 DECISION"** for every row, while
+`I_Y['1du'] = 1/252` — so a held asset's number under that button was one **trading day**, and a
+game's was one **wager**. The same button, two units. `I_Y['1du']` and `I_Y['1day']` were also
+identical, so held assets printed the same value twice under two different names.
+
+### Measured impact (before the fix)
+
+Worst plotted value and how much of the axis was left for everything else, over all 187 records:
+
+| Horizon | Worst bar | Rows past −100% | Best investment's share of the plotted span |
+|---|---:|---:|---:|
+| 1 week | −262% | 2 | 0.26% |
+| 1 month | −1,125% | 12 | 0.27% |
+| 1 year | −13,688% | 32 | 0.32% |
+| 5 years | −68,438% | 58 | 0.76% |
+| **10 years** | **−136,875%** | **58** | **2.83%** |
+
+The worst bar throughout is *Slots Tight 85%* (−15% edge, 500 decisions/day, 0.5% of bankroll per
+decision). At every horizon past a week, the entire investing half of the chart — the comparison
+the page exists to make — rendered as a flat line at zero. (The roadmap's original note cited
+−45,625%; the measured figure on the current 187-record dataset is −136,875%.)
+
+This was a deliberate decision once: V3's change log reads *"Removed −100% floor on gambling
+losses — losses can now blow past −100%."* It makes a rhetorical point and destroys the axis.
+
+### Fix (shipped)
+
+Three named measures, one coherent model, and the pairing between them is exact:
+
+| Measure | Definition | Bounded? |
+|---|---|---|
+| `returnOnCapital` | What happens to the one bankroll you brought. Assets compound; games accrue the same flat-stake loss but **stop at −100%**. | Yes, at −100% |
+| `expectedTurnoverCost` | Cumulative expected P&L as a % of the starting bankroll at constant turnover — what you lose in total if you keep reloading. **Games only**; a held asset has no turnover. | No, by design |
+| `ruinPoint` | `100 / ((ced/100) × |edge|)` decisions until the flat-stake bankroll is expected to be gone. For a losing held asset, the analogue is years to lose 90%. | — |
+
+`returnOnCapital` reaches its floor for a game **precisely** when the horizon contains `ruinPoint`
+decisions — verified across all 187 records × 7 horizons with **0 disagreements**. That is the
+invariant that makes the floored bar and the ruin marker the same statement.
+
+Turnover cost moved to its own axis behind a **Measure** toggle in the sidebar, where it is
+labelled "% of starting bankroll" and captioned as unbounded. Nothing was deleted; the −136,875%
+number is still there, now on an axis where it means something.
+
+### Result
+
+| Horizon | Best investment's share of the axis — was | now |
+|---|---:|---:|
+| 1 year | 0.32% | **8.09%** |
+| 5 years | 0.76% | **22.72%** |
+| 10 years | 2.83% | **85.97%** |
+
+Also shipped with it:
+
+- **Ruin left the tooltip and reached the chart.** A dotted −100% floor line labelled
+  `RUIN — TOTAL CAPITAL LOSS`, an ✕ marker per ruined activity, and a **Ruined By Horizon** stat
+  card (58 of 160 at ten years with every category enabled). The floor line and the axis pin only
+  appear once a bar actually reaches −100%, so the short horizons still fit their own data.
+- **The ruin calculator works again.** Idea #4 in `improvement_ideas.md` was shipped in V18 and
+  silently lost in the V19 rewrite — `showRuin` was still assigned but read nowhere, and the
+  `.tt-ruin-box` CSS sat unused. Restored, with decisions-to-$0, time-to-ruin, stake per wager and
+  the urgency meter, and **on by default**.
+- **Horizon units are per row.** `1du` is now `1 WAGER` on a game and `1 TRADING DAY` on a held
+  asset, the tooltip carries an explicit "Horizon basis" line (`14,600 wagers` / `1.00 years
+  held`), and the duplicate `1du` row is dropped for held assets.
+
+### Regression guard
+
+`npm run check:spectrum` (from `site/`) lifts the page's own `MATH & CONSTANTS` block and `RAW`
+dataset out of the HTML and runs the **real** functions — it is the page under test, not a copy.
+It asserts the record count, that no `returnOnCapital` breaches −100%, that some
+`expectedTurnoverCost` still passes −100% (a floored one would erase the distinction), the
+floor/ruin-point agreement, that every losing row can say how it ends, that `1du` never labels a
+wager and a trading day identically, and that the best investment holds ≥25% of the 10-year axis.
+Verified to fail as intended by deleting the `Math.max(RUIN_FLOOR, …)` from the page (13 breaches,
+exit 1) and by widening `RUIN_FLOOR` to −1000 (exit 1). Wired into `.github/workflows/ci.yml`
+alongside `check:market`.
+
+**Known, out of scope, still broken:** the `showDCA` toggle ("Dollar Cost $100/wk", idea #17,
+shipped in V11) is the *other* casualty of the V19 rewrite — still assigned, still read nowhere.
+Left alone rather than fixed in passing; it needs its own item.
+
+---
+
 ## 🔐 Auth gate (implemented 2026-08-18)
 
 Interim protection for the Gemini key, ahead of the broader rate-limiting work in section 2a.
@@ -324,7 +426,7 @@ variables for production. Optionally set `ADVISOR_SECRET` to a long random strin
 
 | Phase | Work |
 |---|---|
-| **Now** | ✅ Auth gate on the advisor · ✅ section 1 generator bias + regression guard · ✅ "Live Data Engine" → "Simulated Data" · ✅ Zod-validate `/api/backtest` · ✅ ESPN cache headers · ✅ `check:market` wired into CI · ✅ debounce + abort the backtester (2d) · label the truncated ledger (2e) · rate-limit the advisor (2a) |
+| **Now** | ✅ Auth gate on the advisor · ✅ section 1 generator bias + regression guard · ✅ "Live Data Engine" → "Simulated Data" · ✅ Zod-validate `/api/backtest` · ✅ ESPN cache headers · ✅ `check:market` wired into CI · ✅ debounce + abort the backtester (2d) · ✅ section 8 Spectrum metric split + `check:spectrum` in CI · label the truncated ledger (2e) · rate-limit the advisor (2a) |
 | **Next** | Client-side sim in a Web Worker (removes the API round-trip entirely) · lazy routes · URL-serialised strategy + share cards · Vitest |
 | **Then** | Significance panel + Monte Carlo fan chart + staking grid · odds / vig / parlay calculators |
 | **After** | CLV tracker (needs a DB) · real historical odds for one sport · Edge Audit · quiz |

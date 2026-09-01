@@ -2,6 +2,64 @@
 
 ---
 
+## V20 — August 31, 2026
+
+Roadmap [Action 2.1](roadmap.md) — metric semantics and dual-axis correction. Evidence and
+measurements in [§8 of hub_improvement_plan.md](Ideas/hub_improvement_plan.md).
+
+> **Log gap:** V18 and V19 were never recorded here. V18 shipped the Ruin Calculator (idea #4);
+> V19 was a layout and tooltip rewrite that silently dropped both it and the V11 Dollar Cost
+> overlay (idea #17), leaving two toggles in the UI that did nothing.
+
+### Metric Split: One "Expected Return" Axis Became Three Named Measures
+- `invRet` and `gambRet` were plotting a compounded return on capital and an unfloored linear
+  turnover cost on one shared y-axis. Replaced with:
+  - **`returnOnCapital`** — primary comparison, floored at −100%. Held assets compound; games
+    accrue their flat-stake loss and stop when the bankroll is gone.
+  - **`expectedTurnoverCost`** — games only, deliberately unbounded, on its own axis.
+  - **`ruinPoint`** — `100 / (CED% × |edge|%)` decisions to $0; years to −90% for a losing asset.
+- The two measures agree by construction: a game's return on capital hits the floor exactly when
+  the horizon contains its ruin point. Verified across 187 records × 7 horizons, 0 disagreements.
+
+### New Control: Measure Toggle
+- Sidebar **MEASURE** section — `ON CAPITAL` (default) / `TURNOVER COST`, each with its own axis,
+  title, caption, and stat-card labels.
+- Selecting Turnover Cost shows wagering activities only; a held asset has no turnover.
+
+### Ruin Moved Onto the Chart
+- Dotted −100% floor line annotated `RUIN — TOTAL CAPITAL LOSS`, drawn only once a bar reaches it.
+- An ✕ marker per ruined activity, and a **Ruined By Horizon** stat card replacing Variance Spread.
+- "Ruin Probability" toggle renamed **Ruin Point Overlay**, reimplemented, and **on by default**.
+- Tooltip Ruin Point box restored: decisions to $0, time to ruin, stake per wager, expected loss
+  per wager, urgency meter.
+
+### Horizon Labels: Wagers and Trading Days Are No Longer the Same Unit
+- `1 DECISION` → **`SINGLE EVENT`** in the sidebar; per row it reads `1 WAGER` on a game and
+  `1 TRADING DAY` on a held asset.
+- Tooltips gained a **Horizon basis** line (`14,600 wagers` / `1.00 years held`).
+- The duplicate `1du` row is dropped for held assets, where it repeated `1 DAY` exactly.
+
+### Axis Scaling
+- The axis fits its data at short horizons and pins to the floor only when something reaches it,
+  so a +4,000% ten-year outlier no longer dictates the empty space below zero.
+
+### Regression Guard
+- **`npm run check:spectrum`** evaluates the page's own math block and dataset out of the HTML and
+  asserts the floor, the unfloored turnover cost, the floor/ruin agreement, per-row `1du` labels,
+  and that the best investment holds ≥25% of the 10-year axis. Wired into CI.
+
+### Measured Effect
+| Horizon | Best investment's share of the plotted axis — was | now |
+|---------|---:|---:|
+| 1 year | 0.32% | 8.09% |
+| 5 years | 0.76% | 22.72% |
+| 10 years | 2.83% | 85.97% |
+
+Worst plotted bar at 10 years was **−136,875%** (Slots Tight 85%); it is now **−100%** on the
+primary measure and still −136,875% on the turnover axis where it belongs.
+
+---
+
 ## V17 — March 28, 2026
 
 ### New Category: Precious Metals (10 raw + 2 tax-adjusted)
