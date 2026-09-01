@@ -1,5 +1,16 @@
 # Edge Analysis V12 -- Combined Dataset (DU/CED Framework)
 
+> [!WARNING]
+> **Frozen archive — not the dataset.** This file is a snapshot of the V12 catalog as it stood on
+> 30 March 2026, kept for its rationale and its history. It is **21 records behind** the canonical
+> dataset: it predates the whole **Precious Metals** and **Insurance & Annuities** categories, and
+> it still lists a `Gold / Precious Metals (GLD)` row under Stock Market that was later renamed
+> `Gold Bullion (Physical / GLD)` and moved. Its horizon columns are also computed under the
+> single-axis model that roadmap Action 2.1 replaced on 2026-08-31, and nothing recomputed them.
+>
+> The current dataset is [`edge_dataset.md`](edge_dataset.md), generated from
+> `site/src/data/edges.ts`. Edit that; this file stays as it is.
+
 **Version:** 12.0
 **Date:** March 30, 2026
 **Data Points:** 166

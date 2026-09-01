@@ -92,14 +92,16 @@ edge-spectrum/
 │   │   ├── pages/
 │   │   │   └── Home.tsx   # Landing page (dashboard tile grid mapping over tools.ts)
 │   │   ├── server/        # Shared backend engines (backtest, ESPN score, Gemini prompt engines)
+│   │   ├── data/edges.ts  # The Dataset — SINGLE SOURCE OF TRUTH for all 187 edge records
 │   │   ├── App.tsx        # Main router shell & top-nav bar
 │   │   ├── main.tsx       # React bootstrap
 │   │   └── tools.ts       # The Registry — SINGLE SOURCE OF TRUTH for all tools
+│   ├── scripts/           # Guards & generators (check:market, check:spectrum, gen:edges)
 │   ├── server.ts          # Express local dev server (proxies/runs Vite + serverless local engines)
 │   ├── package.json       # Scripts & node dependencies
 │   └── vercel.json        # Vercel configuration (SPA routing overrides & API serverless mappings)
 ├── Docs/                  # In-depth logs, standardized analysis, and future ideas
-├── Data/                  # Current and legacy edge datasets
+├── Data/                  # edge_dataset.md (generated from edges.ts) + frozen legacy catalogs
 ├── Images/                # Logos, icons, screenshots, and favicon.svg (archived copy of the app icon)
 └── Versions/              # Legacy and alternate versions (Streamlit port, original themes)
 ```
