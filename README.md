@@ -44,7 +44,7 @@
 
 **Edge Spectrum** is an interactive playground for exploring mathematical edges. It brings together three analytical applications:
 
-1. **The Edge Spectrum Expected-Return Visualizer** (`/spectrum/`): Compares expected cumulative returns across **187 financial, investing, trading, and gambling activities** over **7 time horizons** (1 Bet to 10 Years), standardized using the **DU/CED framework**.
+1. **The Edge Spectrum Expected-Return Visualizer** (`/spectrum/`): Compares **187 financial, investing, trading, and gambling activities** over **7 time horizons** (Single Event to 10 Years), standardized using the **DU/CED framework**. Return on capital is the primary axis and is floored at −100%; the unbounded turnover cost gets its own axis so the two are never compared as if they were the same quantity.
 2. **The Backtest Simulator** (`/backtester`): Backtests sports wagering strategies across **25 simulated seasons of MLB, NFL, NHL, and NBA games** (2000–2025), providing ROI diagnostics, equity curves, live ESPN scores, and an **AI Strategy Advisor** powered by Gemini.
 3. **Odds Converter & No-Vig Calculator** (`/odds`): Converts American, decimal, fractional and implied odds, and strips bookmaker margin from any multi-way market via **multiplicative, power, or Shin** de-vigging.
 
@@ -57,12 +57,15 @@ Served as a static page at `/spectrum/index.html` (internally routes to `public/
 
 - **13 Asset/Bet Categories:** Stocks, Bonds, Real Estate, Crypto, Precious Metals, Collectibles, Insurance/Annuities, Sports Betting, Casino, Poker, Prediction Markets, and Lottery.
 - **Universal DU/CED Framework:** Standardized expected returns via:
-  $$\text{Expected Return} = \text{Decision Units (DU)} \times \text{Capital Exposure per Decision (CED)} \times \text{Edge}$$
-- **Interactive Controls:** Toggle any combination of categories, adjust time horizons (1 Bet to 10 Years), switch overlays (Raw Returns, Fee-Adjusted, After-Tax).
-- **Insights Overlays:**
-  - **Addiction Risk Scoring:** Color-coded border alerts based on feedback loops and documentation of problem behavior.
-  - **Ruin Calculator:** Projects hand/bet count until a $1,000 bankroll hits zero under negative-edge scenarios.
-  - **Dollar Cost Comparison:** Translates percentages into actual dollar outcomes based on a $100/week contribution.
+  $$\text{Expected Turnover Cost} = \text{Decision Units (DU)} \times \text{Capital Exposure per Decision (CED)} \times \text{Edge}$$
+- **Three named measures, never mixed on one axis:**
+  - **Return on Capital** *(primary)* — what happens to the one bankroll you brought. Held assets compound; wagering activities accrue their flat-stake loss and stop at **−100%**, because a bankroll cannot lose more than itself.
+  - **Expected Turnover Cost** *(secondary axis, wagering activities only)* — the DU/CED product above: cumulative expected loss as a multiple of the starting bankroll, deliberately **unbounded**, because it assumes you keep reloading.
+  - **Ruin Point** — decisions until the bankroll is expected to reach $0 (years to −90% for a losing held asset).
+- **Interactive Controls:** Toggle any combination of categories, switch measure (On Capital / Turnover Cost), adjust time horizons (Single Event to 10 Years), switch overlays (Raw Returns, Fee-Adjusted, After-Tax).
+- **Ruin Point Overlay** *(on by default)*: a dotted −100% floor line on the primary chart, an ✕ per activity whose bankroll is gone before the horizon ends, a **Ruined By Horizon** counter, and per-activity decisions-to-$0 and time-to-ruin in the tooltip.
+- **Addiction Risk Scoring:** Color-coded border alerts based on feedback loops and documentation of problem behavior.
+- **Dollar Cost Comparison** *(toggle present but non-functional — regressed in V19, see [change_log.md](Docs/change_log.md))*: intended to translate percentages into dollar outcomes at $100/week.
 
 ### 2. The Sports Wagering Backtester
 Served inside the SPA React shell at `/backtester`.
@@ -90,14 +93,16 @@ edge-spectrum/
 │   │   ├── pages/
 │   │   │   └── Home.tsx   # Landing page (dashboard tile grid mapping over tools.ts)
 │   │   ├── server/        # Shared backend engines (backtest, ESPN score, Gemini prompt engines)
+│   │   ├── data/edges.ts  # The Dataset — SINGLE SOURCE OF TRUTH for all 187 edge records
 │   │   ├── App.tsx        # Main router shell & top-nav bar
 │   │   ├── main.tsx       # React bootstrap
 │   │   └── tools.ts       # The Registry — SINGLE SOURCE OF TRUTH for all tools
+│   ├── scripts/           # Guards & generators (check:market, check:spectrum, gen:edges)
 │   ├── server.ts          # Express local dev server (proxies/runs Vite + serverless local engines)
 │   ├── package.json       # Scripts & node dependencies
 │   └── vercel.json        # Vercel configuration (SPA routing overrides & API serverless mappings)
 ├── Docs/                  # In-depth logs, standardized analysis, and future ideas
-├── Data/                  # Current and legacy edge datasets
+├── Data/                  # edge_dataset.md (generated from edges.ts) + frozen legacy catalogs
 ├── Images/                # Logos, icons, screenshots, and favicon.svg (archived copy of the app icon)
 └── Versions/              # Legacy and alternate versions (Streamlit port, original themes)
 ```

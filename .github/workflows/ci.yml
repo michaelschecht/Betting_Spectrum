@@ -20,5 +20,8 @@ jobs:
           cache-dependency-path: site/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm run gen:edges -- --check
       - run: npm run check:market
+      - run: npm run check:spectrum
+      - run: npm run check:odds
       - run: npm run build
