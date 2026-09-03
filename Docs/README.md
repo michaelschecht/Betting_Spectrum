@@ -31,9 +31,10 @@
 Edge Spectrum operates as a multi-tool web application hosted on **Vercel** with the root directory set to `site/`:
 
 1. **The Registry (`site/src/tools.ts`)** — Single source of truth for tool metadata, icons, routing targets, status flags, and accent styles.
-2. **Backtest Simulation Engine (`site/src/dataGenerator.ts` & `site/src/server/backtest.ts`)** — Simulates 25 seasons of MLB, NFL, NHL, and NBA games based on power ratings with unbiased market pricing derived from empirical score distributions.
-3. **Edge Spectrum Visualizer (`site/public/spectrum/index.html`)** — Interactive multi-horizon comparison across 187 financial, investing, trading, and wagering activities.
-4. **AI Strategy Advisor (`site/src/server/advisor.ts`)** — Server-side Gemini integration providing strategy feedback behind HMAC-signed session gates.
+2. **The Dataset (`site/src/data/edges.ts`)** — Single source of truth for the 187 edge records. The Spectrum page's inlined `RAW`, `edges.json`, the Streamlit port and `Data/edge_dataset.md` are all generated from it by `npm run gen:edges`.
+3. **Backtest Simulation Engine (`site/src/dataGenerator.ts` & `site/src/server/backtest.ts`)** — Simulates 25 seasons of MLB, NFL, NHL, and NBA games based on power ratings with unbiased market pricing derived from empirical score distributions.
+4. **Edge Spectrum Visualizer (`site/public/spectrum/index.html`)** — Interactive multi-horizon comparison across 187 financial, investing, trading, and wagering activities.
+5. **AI Strategy Advisor (`site/src/server/advisor.ts`)** — Server-side Gemini integration providing strategy feedback behind HMAC-signed session gates.
 
 ---
 
@@ -41,7 +42,8 @@ Edge Spectrum operates as a multi-tool web application hosted on **Vercel** with
 
 - **`npm run check:market`** — Runs all 40 naive wagering strategies across 26 simulated seasons, verifying that realized ROI falls strictly within the realistic bookmaker hold band (−7.0% to −2.5%).
 - **`npm run check:spectrum`** — Evaluates the Spectrum visualizer's own math block and dataset directly out of `site/public/spectrum/index.html` and asserts its metric invariants: `returnOnCapital` never breaches its −100% floor, `expectedTurnoverCost` stays unfloored, the two agree on where ruin falls across all 187 records × 7 horizons, and the `1du` horizon never labels a wager and a trading day identically.
-- **`npm run check:edges`** *(Phase 2)* — Asserts bounds, category counts, and non-regressing provenance citations across all 187 canonical edge records.
+- **`npm run gen:edges -- --check`** — Regenerates every downstream copy of the dataset from `site/src/data/edges.ts` and fails if any has drifted: the Spectrum page's inlined `RAW`, `site/public/spectrum/edges.json`, `Versions/Streamlit/data.py`, and `Data/edge_dataset.md`. Drop the `-- --check` to write them.
+- **`npm run check:edges`** *(Phase 2, Action 2.3 — not built yet)* — Will assert bounds, category counts, and non-regressing provenance citations across all 187 canonical edge records.
 - **`npm run lint`** — TypeScript compilation check (`tsc --noEmit`).
 - **`npm run build`** — Production bundle generation via Vite.
 

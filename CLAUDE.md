@@ -44,9 +44,13 @@ site/                 # ← the whole web app (Vercel Root Directory = site)
                        #   validation) — imported by BOTH server.ts and api/
     strategyBounds.ts  # the numeric limits the schema enforces; no imports, so the strategy
                        #   form can clamp to them without pulling Zod into the client bundle
+    data/edges.ts      # THE DATASET — the canonical 187 edge records. Everything else that
+                       #   holds this data is generated from it; see "Generated data" below
     dataGenerator.ts, types.ts
+  scripts/            # not shipped: check-market.ts, check-spectrum.ts, generate-edge-artifacts.ts
   api/                # Vercel serverless: backtest.ts, espn-scoreboard.ts, strategy-advisor.ts
   public/spectrum/    # the original Edge Spectrum Plotly viz, served static at /spectrum/index.html
+                      #   index.html's RAW block and edges.json are GENERATED — do not hand-edit
   index.html, server.ts, package.json, vite.config.ts, vercel.json, tsconfig.json
 Versions/ Data/ Docs/ Images/   # preserved Edge Spectrum archives & screenshots (repo root, not deployed)
 Images/favicon.svg    # archived copy of the app icon (the served icon is site/public/favicon.svg)
@@ -89,8 +93,16 @@ Images/favicon.svg    # archived copy of the app icon (the served icon is site/p
   names the script destructures, breaks the guard. Its three measures are not interchangeable:
   `returnOnCapital` is floored at −100%, `expectedTurnoverCost` is deliberately not, and they must
   keep agreeing on `ruinPoint`. Never plot them on one axis again — that was roadmap Action 2.1.
+- **Generated data.** `site/src/data/edges.ts` is the only place the 187 edge records are authored.
+  `npm run gen:edges` regenerates every copy from it — the `RAW` block inside
+  `site/public/spectrum/index.html`, `site/public/spectrum/edges.json`, `Versions/Streamlit/data.py`
+  and `Data/edge_dataset.md`. Edit `edges.ts`, run the script, commit the result; editing an
+  artifact by hand is reverted by the next run and fails CI (`npm run gen:edges -- --check`).
+  The page's data stays **inlined** rather than fetched, deliberately — that is what keeps
+  `check:spectrum` testing the file that actually deploys. `Data/edge_analysis*.md` are frozen
+  archives, not inputs.
 - Local dev (from `site/`): `npm run dev` (binds `PORT`, default 3001). `npm run build` = `vite build` + esbuild-bundle `server.ts`.
-  CI (`.github/workflows/ci.yml`) runs `lint` → `check:market` → `check:spectrum` → `build` on every PR.
+  CI (`.github/workflows/ci.yml`) runs `lint` → `gen:edges --check` → `check:market` → `check:spectrum` → `build` on every PR.
 
 ## Branch workflow (PR flow)
 

@@ -60,39 +60,33 @@ Phase 7: Public Launch ⚪
 - [x] 🟠 **Scoreboard CDN Caching (Shipped 2026-08-24):** Added `Cache-Control: s-maxage=30, stale-while-revalidate=120` to `/api/espn-scoreboard` to cache external API requests.
 - [x] 🟠 **CI Workflow (Shipped 2026-08-24):** Configured `.github/workflows/ci.yml` to run TypeScript typecheck, `npm run check:market`, and Vite build on every pull request.
 - [x] 🔴 **Metric Semantics & Dual-Axis Correction (Shipped 2026-08-31):** `site/public/spectrum/index.html` plotted a compounded return on capital against an unfloored linear turnover cost on one axis labelled "Expected Return". Measured: at the 10-year horizon the worst bar read **−136,875%** (Slots Tight 85%), which squashed the best investment on the board into **2.83%** of the plotted span — every asset rendered as a flat line at zero. Split into three named measures — `returnOnCapital` (floored at −100%), `expectedTurnoverCost` (games only, deliberately unbounded, on its own axis behind a **Measure** toggle) and `ruinPoint` (decisions to $0). The best investment now spans **85.97%** of the 10-year axis. The ruin marker moved out of the tooltip onto the primary chart as a dotted −100% floor line, an ✕ per ruined activity, and a "Ruined By Horizon" stat card (58 of 160 at 10 years). The `1du` horizon no longer calls one wager and one trading day both "1 DECISION" — it is labelled per row. Guarded by `npm run check:spectrum`, which evaluates the page's own math and asserts the floor holds, turnover cost stays unfloored, and the two agree on ruin across all 187 records × 7 horizons.
+- [x] 🔴 **Canonical Dataset Single Source of Truth (Shipped 2026-08-31):** Three hand-maintained copies of the same dataset existed with nothing comparing them. Measured: `site/public/spectrum/index.html` and `Versions/Streamlit/data.py` were in fact **identical** across all 187 records and all 11 fields — but `Data/edge_analysis12.md` was **21 records behind**, missing the entire **Precious Metals** (12) and **Insurance & Annuities** (11) categories and still carrying a `Gold / Precious Metals (GLD)` row the others had renamed and moved, with horizon columns computed under the pre-Action-2.1 single-axis model. `site/src/data/edges.ts` is now the single typed `readonly EdgeRecord[]`, storing only the fields that carry information — `g`, `type`, `vol`, `wp` and `sk` are pure functions of `cat` and `m`, so `toSpectrumRow()` re-expands them instead of the dataset holding 187 copies of `"Varies"`. `site/scripts/generate-edge-artifacts.ts` (`npm run gen:edges`) emits all four downstream artifacts, and reproduces the shipped `index.html` `RAW` block and the Streamlit `RAW` list **byte-for-byte** — the extraction changed no deployed behaviour. `npm run gen:edges -- --check` runs in CI and fails the build on drift; verified by editing one value in `edges.ts` (all 4 artifacts flagged, exit 1) and restoring it (exit 0). The Spectrum page keeps its data inlined on purpose, so `check:spectrum` still tests the file that deploys.
 
 #### Sequenced Action Items (In Order of Execution)
 
-1. [ ] 🔴 **Action 2.2 — Canonical Dataset Single Source of Truth (Audit D2 · A2)**
-   - **Problem:** Three versions of the edge dataset exist (`Data/edge_analysis12.md` with 166 records; `site/public/spectrum/index.html` with 187 records; `Versions/Streamlit/data.py` with 187 records), drifting in both directions.
-   - **Implementation:**
-     - Create `site/src/data/edges.ts` defining a typed `readonly EdgeRecord[]` as the single canonical dataset.
-     - Build a build-step generator (`site/scripts/generate-edge-artifacts.ts`) that produces `site/public/spectrum/edges.json` for the static visualizer.
-     - Generate markdown documentation tables in `Data/` directly from `edges.ts`.
-
-2. [ ] 🔴 **Action 2.3 — Automated Dataset Validation & Provenance Ratchet (Audit D3, E4 · A3)**
+1. [ ] 🔴 **Action 2.3 — Automated Dataset Validation & Provenance Ratchet (Audit D3, E4 · A3)**
    - **Problem:** None of the 187 edge records carry source citations, as-of dates, or confidence intervals, and the Spectrum page has zero automated test coverage.
    - **Implementation:**
      - Add optional provenance fields (`source`, `asOf`, `window`, `methodology`) to the `EdgeRecord` type.
      - Write `site/scripts/check-edges.ts` (`npm run check:edges`) to assert record counts (187), category boundaries, mathematical invariants, and a citation coverage ratchet baseline (`site/src/data/provenance-baseline.json`).
      - Wire `npm run check:edges` into `.github/workflows/ci.yml` alongside `check:market`.
 
-3. [ ] 🔴 **Action 2.4 — Purge Inoperative Strategy Controls (Audit D4 · A4)**
+2. [ ] 🔴 **Action 2.4 — Purge Inoperative Strategy Controls (Audit D4 · A4)**
    - **Problem:** `streakTarget` and `starPlayerFilter` exist across `types.ts`, `strategySchema.ts`, `StrategyBuilder.tsx`, `BacktesterApp.tsx`, and `advisor.ts`, but `runBacktest()` never reads them. `advisor.ts` marks `starPlayerFilter` as `required` in the Gemini schema, forcing the LLM to hallucinate reasons for a filter that has no effect.
    - **Implementation:**
      - Remove `streakTarget` and `starPlayerFilter` from `types.ts`, `strategySchema.ts`, `StrategyBuilder.tsx`, `BacktesterApp.tsx`, and presets.
      - Remove `starPlayerFilter` from the Gemini advisor schema and prompt instructions in `site/src/server/advisor.ts`.
 
-4. [ ] 🟠 **Action 2.5 — Public Framing & Audit Scope Alignment (Audit D6, D8 · A5)**
+3. [ ] 🟠 **Action 2.5 — Public Framing & Audit Scope Alignment (Audit D6, D8 · A5)**
    - **Problem:** Root `README.md` claimed "25 Years of Historical Odds & Results" for power-rating generated seasons, and `CLAUDE.md` marked `site/public/spectrum/` as "leave as-is", causing audits to skip the visualizer.
    - **Implementation:**
      - Correct root `README.md` and app copy to state "25 Years of Simulated Historical Seasons" matching `tools.ts`.
      - Update `CLAUDE.md` to clarify that `site/public/spectrum/` is self-contained for serving but subject to mathematical and dataset audits.
 
-5. [x] 🟡 **Action 2.6 — Debounce & Abort Backtest Race Conditions (Audit D7):**
+4. [x] 🟡 **Action 2.6 — Debounce & Abort Backtest Race Conditions (Audit D7):**
    - **Implementation:** Added 300 ms debounce timer on the auto-rerun `useEffect` in `BacktesterApp.tsx` and an in-flight `AbortController` ref that aborts superseded runs. Repeated the abort check after `response.json()` to discard late-arriving responses, and suppressed error banners / spinner drops on aborts.
 
-6. [ ] 🟠 **Action 2.7 — AI Advisor Rate Limiting & Spend Caps**
+5. [ ] 🟠 **Action 2.7 — AI Advisor Rate Limiting & Spend Caps**
    - **Problem:** Passcode authentication protects against unauthenticated users but does not limit total requests or cost from authenticated sessions.
    - **Implementation:**
      - Add IP/session rate limiting (e.g. 10 requests per hour per session).
@@ -212,7 +206,7 @@ Phase 7: Public Launch ⚪
 
 ## 🔗 Sequencing Rationale
 
-1. **Truth before expansion:** Mathematical errors distort the core thesis of the platform. The headline example — comparing unbounded turnover cost against bounded capital returns on one axis — was fixed on 2026-08-31 and is now held by `npm run check:spectrum`; the dataset and dead-control items behind it are not. Phase 2 must complete before building report exports or public features.
+1. **Truth before expansion:** Mathematical errors distort the core thesis of the platform. The headline example — comparing unbounded turnover cost against bounded capital returns on one axis — was fixed on 2026-08-31 and is held by `npm run check:spectrum`; the dataset now has one source of truth held by `npm run gen:edges -- --check`. What remains unheld is provenance (no record cites a source) and the dead strategy controls. Phase 2 must complete before building report exports or public features.
 2. **Deterministic reporting before heavy client compute:** Establishing the export contract and statistical inference (Phase 3) provides the validation fixtures needed when porting the simulation engine to Web Workers (Phase 4).
 3. **Forward line capture begins early:** Forward collection of closing lines (Phase 5) takes time to build longitudinal history; launching the snapshot cron as early as possible maximizes available data for the CLV engine.
 4. **Calculators as organic acquisition:** Standalone calculators (Phase 6) are low-maintenance, high-utility entry points that introduce new users to the broader Edge Spectrum analysis framework.
