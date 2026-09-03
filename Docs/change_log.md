@@ -2,6 +2,24 @@
 
 ---
 
+## September 3, 2026 — Phase 6 Calculators (Roadmap Actions 6.1 & 6.2)
+
+Two standalone, client-side calculators added to the hub. Neither touches the edge dataset or the
+simulator; both sit on one pure math module, `site/src/odds.ts`, guarded by `npm run check:odds` in CI.
+
+- **`/odds` — Odds Converter & No-Vig Fair Price.** Type into any of American / decimal /
+  fractional / implied and the rest update. Enter every side of a market to strip the margin with
+  the multiplicative, power, or Shin method; shows fair probability and price per outcome,
+  per-leg vig, overround, hold, and the solved exponent *k* or insider share *z*.
+- **`/parlay` — Parlay & SGP Hold.** Each leg is de-vigged from both sides of its market,
+  multiplied into a true joint probability, and compared with the book's payout (product of legs,
+  or a pasted quoted SGP price). Reports fair vs. book price, EV, hold, a margin multiplier vs. a
+  single straight bet, and a ladder showing the hold compounding leg by leg. Legs are treated as
+  independent; the page says so.
+- Shared calculator UI extracted to `site/src/components/CalcUi.tsx`.
+
+---
+
 ## V20 — August 31, 2026
 
 Roadmap [Action 2.1](roadmap.md) — metric semantics and dual-axis correction. Evidence and
