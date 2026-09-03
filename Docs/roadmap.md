@@ -26,7 +26,7 @@ This document tracks the milestones, architectural upgrades, and feature additio
 Phase 1: Consolidation 🟢 ──► Phase 2: Truth & Safety 🟡 ──► Phase 3: Reporting & Inference ⚪
                                        │ (Release Gate)
                                        ▼
-Phase 6: Calculators ⚪ ◄── Phase 5: Collection ⚪ ◄── Phase 4: Client Engine ⚪
+Phase 6: Calculators 🟡 ◄── Phase 5: Collection ⚪ ◄── Phase 4: Client Engine ⚪
         │
         ▼
 Phase 7: Public Launch ⚪
