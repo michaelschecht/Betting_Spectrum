@@ -103,7 +103,7 @@ export default function Home() {
         <div className="flex h-full min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800/60 p-6 text-center">
           <Sparkles className="mb-3 h-6 w-6 text-zinc-600" />
           <p className="text-sm font-medium text-zinc-400">More tools coming</p>
-          <p className="mt-1 text-xs text-zinc-600">Odds calculators, portfolio tools &amp; more</p>
+          <p className="mt-1 text-xs text-zinc-600">Kelly sizing, portfolio tools &amp; more</p>
         </div>
       </section>
 

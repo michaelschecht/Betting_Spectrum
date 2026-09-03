@@ -174,3 +174,51 @@ export function devig(decimals: number[], method: DevigMethod): DevigResult {
     }
   }
 }
+
+// ── Parlays ─────────────────────────────────────────────────────────────
+
+export interface ParlayLeg {
+  /** Book decimal price of the side you are taking. */
+  decimal: number;
+  /** Fair (de-vigged) win probability of that side. */
+  fair: number;
+}
+
+export interface ParlayResult {
+  /** True joint probability, assuming independent legs: Π fair_i. */
+  jointProb: number;
+  /** Fair parlay price: 1 / jointProb. */
+  fairDecimal: number;
+  /** What the book pays: the quoted price, or Π decimal_i when none is given. */
+  bookDecimal: number;
+  /** Expected profit per unit staked: jointProb × bookDecimal − 1. */
+  ev: number;
+  /** Book's expected take per unit staked: −ev. */
+  hold: number;
+  /** Per-leg hold on the side taken: implied − fair (informational). */
+  legHolds: number[];
+}
+
+/**
+ * Compare the true joint odds of a multi-leg wager against what the book pays.
+ * `quotedDecimal` is the book's actual parlay/SGP price when it differs from
+ * the naive product of the legs (SGPs almost always do).
+ *
+ * ponytail: legs are treated as independent. Correlated SGP legs make the true
+ * joint probability higher (positively correlated) or lower than this — add a
+ * correlation input if that ever matters.
+ */
+export function parlay(legs: ParlayLeg[], quotedDecimal?: number): ParlayResult {
+  if (legs.length < 1) throw new Error('A parlay needs at least 1 leg');
+  const jointProb = legs.reduce((p, l) => p * l.fair, 1);
+  const bookDecimal = quotedDecimal ?? legs.reduce((d, l) => d * l.decimal, 1);
+  const ev = jointProb * bookDecimal - 1;
+  return {
+    jointProb,
+    fairDecimal: 1 / jointProb,
+    bookDecimal,
+    ev,
+    hold: -ev,
+    legHolds: legs.map((l) => 1 / l.decimal - l.fair),
+  };
+}

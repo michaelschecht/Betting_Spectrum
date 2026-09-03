@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Calculator, Scale, Plus, X, ChevronDown, Info } from 'lucide-react';
+import { Calculator, Scale, Plus, X, Info } from 'lucide-react';
+import { INPUT_CLS, pct, Select, Panel, Stat } from '../components/CalcUi';
 import {
   type OddsFormat, type DevigMethod, FORMAT_LABEL, METHOD_LABEL, METHOD_BLURB,
   parseOdds, formatOdds, devig,
@@ -7,45 +8,6 @@ import {
 
 const FORMATS = Object.keys(FORMAT_LABEL) as OddsFormat[];
 const METHODS = Object.keys(METHOD_LABEL) as DevigMethod[];
-
-const INPUT_CLS =
-  'h-10 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 font-mono text-sm text-zinc-100 transition-all hover:border-zinc-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20';
-const SELECT_CLS =
-  'peer h-10 w-full appearance-none rounded-lg border border-zinc-800 bg-zinc-950 pl-3 pr-9 text-sm font-medium text-zinc-200 transition-all hover:border-zinc-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer';
-
-const pct = (p: number, dp = 2) => `${(p * 100).toFixed(dp)}%`;
-
-function Select<T extends string>({
-  value, onChange, options, labels,
-}: { value: T; onChange: (v: T) => void; options: T[]; labels: Record<T, string> }) {
-  return (
-    <div className="relative">
-      <select value={value} onChange={(e) => onChange(e.target.value as T)} className={SELECT_CLS}>
-        {options.map((o) => <option key={o} value={o}>{labels[o]}</option>)}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 peer-focus:text-sky-400" />
-    </div>
-  );
-}
-
-function Panel({ icon: Icon, title, blurb, children }: {
-  icon: React.ElementType; title: string; blurb: string; children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-6">
-      <div className="mb-5 flex items-start gap-3">
-        <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-2.5 text-violet-400">
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-zinc-100">{title}</h2>
-          <p className="mt-1 text-sm text-zinc-400">{blurb}</p>
-        </div>
-      </div>
-      {children}
-    </section>
-  );
-}
 
 // ── Converter ────────────────────────────────────────────────────────────
 
@@ -207,17 +169,6 @@ function NoVig() {
     </Panel>
   );
 }
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div>
-      <dt className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{label}</dt>
-      <dd className="mt-1 font-mono text-lg text-zinc-100">{value}</dd>
-      {hint && <dd className="text-[11px] text-zinc-600">{hint}</dd>}
-    </div>
-  );
-}
-
 
 export default function OddsConverter() {
   return (
