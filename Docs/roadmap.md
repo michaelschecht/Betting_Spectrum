@@ -34,6 +34,8 @@ Phase 7: Public Launch ⚪
 
 > [!IMPORTANT]
 > **Track A / Phase 2 Release Gate:** No features in Phases 3 through 7 ship to users until all Phase 2 integrity items (metric semantics, canonical dataset, false controls cleanup, and automated checks) have landed. Generating export bundles or training models on distorted metrics bakes invalid math into portable files.
+>
+> **Gate scope (clarified 2026-09-03):** the gate protects anything that *consumes* the edge dataset or the simulator's output. Phase 6 calculators that are pure client-side math with no dependency on either — 6.1 and 6.2, both held by `npm run check:odds` — are outside it and shipped ahead of Phase 2 closing. 6.3 (Kelly) qualifies the same way; 6.4 and 6.5 read `edges.ts` and stay behind the gate.
 
 ---
 
@@ -58,7 +60,7 @@ Phase 7: Public Launch ⚪
 - [x] 🔴 **AI Advisor Passcode Gate (Shipped 2026-08-18):** Gated `/api/strategy-advisor` behind HMAC-signed session cookies (`site/src/server/auth.ts`) to prevent unauthenticated spend of Gemini API quotas.
 - [x] 🔴 **Request Payload Validation (Shipped 2026-08-20):** Added server-side Zod validation in `site/src/server/strategySchema.ts` and client bounds in `site/src/strategyBounds.ts`, preventing expensive out-of-bounds simulation requests.
 - [x] 🟠 **Scoreboard CDN Caching (Shipped 2026-08-24):** Added `Cache-Control: s-maxage=30, stale-while-revalidate=120` to `/api/espn-scoreboard` to cache external API requests.
-- [x] 🟠 **CI Workflow (Shipped 2026-08-24):** Configured `.github/workflows/ci.yml` to run TypeScript typecheck, `npm run check:market`, and Vite build on every pull request.
+- [x] 🟠 **CI Workflow (Shipped 2026-08-24):** Configured `.github/workflows/ci.yml` to run TypeScript typecheck, `npm run check:market`, and Vite build on every pull request. *(Now also runs `gen:edges -- --check`, `check:spectrum`, and `check:odds` — see the CI line in `CLAUDE.md` for the current order.)*
 - [x] 🔴 **Metric Semantics & Dual-Axis Correction (Shipped 2026-08-31):** `site/public/spectrum/index.html` plotted a compounded return on capital against an unfloored linear turnover cost on one axis labelled "Expected Return". Measured: at the 10-year horizon the worst bar read **−136,875%** (Slots Tight 85%), which squashed the best investment on the board into **2.83%** of the plotted span — every asset rendered as a flat line at zero. Split into three named measures — `returnOnCapital` (floored at −100%), `expectedTurnoverCost` (games only, deliberately unbounded, on its own axis behind a **Measure** toggle) and `ruinPoint` (decisions to $0). The best investment now spans **85.97%** of the 10-year axis. The ruin marker moved out of the tooltip onto the primary chart as a dotted −100% floor line, an ✕ per ruined activity, and a "Ruined By Horizon" stat card (58 of 160 at 10 years). The `1du` horizon no longer calls one wager and one trading day both "1 DECISION" — it is labelled per row. Guarded by `npm run check:spectrum`, which evaluates the page's own math and asserts the floor holds, turnover cost stays unfloored, and the two agree on ruin across all 187 records × 7 horizons.
 - [x] 🔴 **Canonical Dataset Single Source of Truth (Shipped 2026-08-31):** Three hand-maintained copies of the same dataset existed with nothing comparing them. Measured: `site/public/spectrum/index.html` and `Versions/Streamlit/data.py` were in fact **identical** across all 187 records and all 11 fields — but `Data/edge_analysis12.md` was **21 records behind**, missing the entire **Precious Metals** (12) and **Insurance & Annuities** (11) categories and still carrying a `Gold / Precious Metals (GLD)` row the others had renamed and moved, with horizon columns computed under the pre-Action-2.1 single-axis model. `site/src/data/edges.ts` is now the single typed `readonly EdgeRecord[]`, storing only the fields that carry information — `g`, `type`, `vol`, `wp` and `sk` are pure functions of `cat` and `m`, so `toSpectrumRow()` re-expands them instead of the dataset holding 187 copies of `"Varies"`. `site/scripts/generate-edge-artifacts.ts` (`npm run gen:edges`) emits all four downstream artifacts, and reproduces the shipped `index.html` `RAW` block and the Streamlit `RAW` list **byte-for-byte** — the extraction changed no deployed behaviour. `npm run gen:edges -- --check` runs in CI and fails the build on drift; verified by editing one value in `edges.ts` (all 4 artifacts flagged, exit 1) and restoring it (exit 0). The Spectrum page keeps its data inlined on purpose, so `check:spectrum` still tests the file that deploys.
 
@@ -77,7 +79,7 @@ Phase 7: Public Launch ⚪
      - Remove `streakTarget` and `starPlayerFilter` from `types.ts`, `strategySchema.ts`, `StrategyBuilder.tsx`, `BacktesterApp.tsx`, and presets.
      - Remove `starPlayerFilter` from the Gemini advisor schema and prompt instructions in `site/src/server/advisor.ts`.
 
-3. [ ] 🟠 **Action 2.5 — Public Framing & Audit Scope Alignment (Audit D6, D8 · A5)**
+3. [x] 🟠 **Action 2.5 — Public Framing & Audit Scope Alignment (Audit D6, D8 · A5)** 🟢 (verified 2026-09-03: no "Historical Odds" claim remains in `README.md`, `CLAUDE.md`, or `site/`; `CLAUDE.md` marks `site/public/spectrum/` as audit-scope. Residual: `README.md` says "25 Simulated Historical Seasons" while `tools.ts` and `check:market` say 26 — 2000–2025 inclusive is 26; align the README copy.)
    - **Problem:** Root `README.md` claimed "25 Years of Historical Odds & Results" for power-rating generated seasons, and `CLAUDE.md` marked `site/public/spectrum/` as "leave as-is", causing audits to skip the visualizer.
    - **Implementation:**
      - Correct root `README.md` and app copy to state "25 Years of Simulated Historical Seasons" matching `tools.ts`.
@@ -113,7 +115,7 @@ Phase 7: Public Launch ⚪
 
 3. [ ] 🟠 **Action 3.3 — First-Tier Statistical Inference (Audit E1 · Track B)**
    - **Feature:** Display fundamental statistical significance metrics on backtest results and include them in exported reports:
-     - Breakeven win rate calculated from realized average odds.
+     - Breakeven win rate calculated from realized average odds. *(Use `parseOdds` / `1/decimal` from `site/src/odds.ts`, shipped with Action 6.1 — do not re-derive the conversion.)*
      - 95% binomial confidence interval on the strategy hit rate.
      - One-tailed p-value testing the hypothesis that the strategy has a positive edge ($H_0: \text{winRate} \le \text{breakeven}$).
      - Sample size warning badge for runs with fewer than 250 wagers.
@@ -123,6 +125,7 @@ Phase 7: Public Launch ⚪
 
 5. [ ] 🟡 **Action 3.5 — Responsible Gambling & Compliance Layer**
    - **Feature:** Add responsible gambling helpline information (1-800-GAMBLER, international resources) and financial disclaimers to application footers and exported markdown reports.
+   - **Scope note (2026-09-03):** the standalone calculator pages (`/odds`, `/parlay`, and 6.3 onward) currently have no footer or disclaimer at all. Put the disclaimer in a shared component so every `route` tool picks it up, rather than per page.
 
 ---
 
@@ -142,9 +145,10 @@ Phase 7: Public Launch ⚪
 
 4. [ ] 🟡 **Action 4.4 — Staking Strategy Grid & Vig Sensitivity Slider**
    - **Feature:** Compare performance across Flat Staking, Proportional % Sizing, Quarter/Full Kelly, and Martingale (with ruin warnings). Add a vig slider allowing users to test resilience if lines move from −110 to −115.
+   - **Reuse note (2026-09-03):** the Kelly sizing math must be the same function Action 6.3 ships (put it in `site/src/odds.ts` or a sibling pure module, no React imports) so the simulator grid and the standalone calculator cannot disagree. The vig slider is a `devig()` / `americanToDecimal()` call from `odds.ts`, not new arithmetic.
 
 5. [ ] 🟠 **Action 4.5 — Bundle Optimization & Code Splitting**
-   - **Feature:** Lazy-load secondary routes (`/backtester`, `/spectrum`) with `React.lazy` and split vendor chunks (`recharts`, `react-markdown`) to reduce initial JS payload from ~776 kB to <150 kB.
+   - **Feature:** Lazy-load secondary routes (`/backtester`, `/odds`, `/parlay`, and each later calculator) with `React.lazy` and split vendor chunks (`recharts`, `react-markdown`) to reduce initial JS payload to <150 kB. Measured 2026-09-03: a single **799 kB** chunk (was ~776 kB before the two calculators; the calculators themselves are small — the weight is the backtester's `recharts` + `react-markdown` + `dataGenerator`, which the hub landing and the calculators never use). Each new Phase 6 tool that lands before this makes the case for it stronger.
 
 6. [ ] 🟡 **Action 4.6 — Native React Port of Spectrum Visualizer**
    - **Feature:** Migrate `site/public/spectrum/index.html` into a native React page (`site/src/pages/Spectrum.tsx`), unifying navigation, theme state, and data loading.
@@ -208,10 +212,10 @@ Phase 7: Public Launch ⚪
 
 ## 🔗 Sequencing Rationale
 
-1. **Truth before expansion:** Mathematical errors distort the core thesis of the platform. The headline example — comparing unbounded turnover cost against bounded capital returns on one axis — was fixed on 2026-08-31 and is held by `npm run check:spectrum`; the dataset now has one source of truth held by `npm run gen:edges -- --check`. What remains unheld is provenance (no record cites a source) and the dead strategy controls. Phase 2 must complete before building report exports or public features.
+1. **Truth before expansion:** Mathematical errors distort the core thesis of the platform. The headline example — comparing unbounded turnover cost against bounded capital returns on one axis — was fixed on 2026-08-31 and is held by `npm run check:spectrum`; the dataset now has one source of truth held by `npm run gen:edges -- --check`. What remains unheld is provenance (no record cites a source) and the dead strategy controls. Phase 2 must complete before building report exports or public features. Self-contained calculators are the one exception (see the gate scope note above): 6.1 and 6.2 shipped 2026-09-03 with their own regression check and touch neither the dataset nor the simulator.
 2. **Deterministic reporting before heavy client compute:** Establishing the export contract and statistical inference (Phase 3) provides the validation fixtures needed when porting the simulation engine to Web Workers (Phase 4).
 3. **Forward line capture begins early:** Forward collection of closing lines (Phase 5) takes time to build longitudinal history; launching the snapshot cron as early as possible maximizes available data for the CLV engine.
-4. **Calculators as organic acquisition:** Standalone calculators (Phase 6) are low-maintenance, high-utility entry points that introduce new users to the broader Edge Spectrum analysis framework.
+4. **Calculators as organic acquisition:** Standalone calculators (Phase 6) are low-maintenance, high-utility entry points that introduce new users to the broader Edge Spectrum analysis framework. Because they do not depend on the gated work, they can be built in parallel with Phase 2 — which is why 6.1 and 6.2 are already live. Their math lives in `site/src/odds.ts` (pure, no imports) so Phases 3 and 4 reuse it instead of re-implementing odds conversion, de-vigging, or Kelly.
 
 ---
 

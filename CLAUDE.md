@@ -38,6 +38,10 @@ site/                 # ← the whole web app (Vercel Root Directory = site)
     tools.ts          # THE REGISTRY — single source of truth for every tool
     App.tsx           # BrowserRouter shell + slim HubNav; routes derived from the tools
     pages/Home.tsx    # hub landing = tile grid, maps over tools.ts
+    pages/OddsConverter.tsx, pages/ParlayCalculator.tsx   # Phase 6 standalone calculators
+    odds.ts           # pure odds/de-vig/parlay math behind the calculators; no imports — held by
+                      #   scripts/check-odds.ts. Reuse it; do not re-derive conversions elsewhere
+    components/CalcUi.tsx  # Panel / Select / Stat shared by the calculator pages
     BacktesterApp.tsx # the Backtest Simulator (mounted at /backtester)
     components/        # Backtester UI (Header, StrategyBuilder, ResultsDashboard, …)
     server/            # backtest / espn / advisor logic + strategySchema.ts (Zod request
@@ -47,7 +51,7 @@ site/                 # ← the whole web app (Vercel Root Directory = site)
     data/edges.ts      # THE DATASET — the canonical 187 edge records. Everything else that
                        #   holds this data is generated from it; see "Generated data" below
     dataGenerator.ts, types.ts
-  scripts/            # not shipped: check-market.ts, check-spectrum.ts, generate-edge-artifacts.ts
+  scripts/            # not shipped: check-market.ts, check-spectrum.ts, check-odds.ts, generate-edge-artifacts.ts
   api/                # Vercel serverless: backtest.ts, espn-scoreboard.ts, strategy-advisor.ts
   public/spectrum/    # the original Edge Spectrum Plotly viz, served static at /spectrum/index.html
                       #   index.html's RAW block and edges.json are GENERATED — do not hand-edit
@@ -102,7 +106,7 @@ Images/favicon.svg    # archived copy of the app icon (the served icon is site/p
   `check:spectrum` testing the file that actually deploys. `Data/edge_analysis*.md` are frozen
   archives, not inputs.
 - Local dev (from `site/`): `npm run dev` (binds `PORT`, default 3001). `npm run build` = `vite build` + esbuild-bundle `server.ts`.
-  CI (`.github/workflows/ci.yml`) runs `lint` → `gen:edges --check` → `check:market` → `check:spectrum` → `build` on every PR.
+  CI (`.github/workflows/ci.yml`) runs `lint` → `gen:edges --check` → `check:market` → `check:spectrum` → `check:odds` → `build` on every PR.
 
 ## Branch workflow (PR flow)
 
