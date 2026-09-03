@@ -26,7 +26,7 @@ This document tracks the milestones, architectural upgrades, and feature additio
 Phase 1: Consolidation 🟢 ──► Phase 2: Truth & Safety 🟡 ──► Phase 3: Reporting & Inference ⚪
                                        │ (Release Gate)
                                        ▼
-Phase 6: Calculators ⚪ ◄── Phase 5: Collection ⚪ ◄── Phase 4: Client Engine ⚪
+Phase 6: Calculators 🟡 ◄── Phase 5: Collection ⚪ ◄── Phase 4: Client Engine ⚪
         │
         ▼
 Phase 7: Public Launch ⚪
@@ -170,11 +170,12 @@ Phase 7: Public Launch ⚪
 
 ---
 
-### Phase 6: Standalone Calculators & Engagement Tools ⚪
+### Phase 6: Standalone Calculators & Engagement Tools 🟡
 *Builds high-utility, SEO-friendly standalone calculators that feed back into the core hub.*
 
-1. [ ] 🟠 **Action 6.1 — Odds Converter & No-Vig Fair Price Calculator**
+1. [x] 🟠 **Action 6.1 — Odds Converter & No-Vig Fair Price Calculator** 🟢 (2026-09-03)
    - **Tool:** Bidirectional conversion across American, Decimal, Fractional, and Implied Probabilities with multi-way market hold removal (Power / Multiplicative / Shin methods).
+   - **Shipped:** `/odds` — `site/src/odds.ts` (pure math) + `site/src/pages/OddsConverter.tsx`; regression check `npm run check:odds`.
 
 2. [ ] 🟠 **Action 6.2 — True-Odds Parlay / SGP Hold Calculator**
    - **Tool:** Compares true joint probability against bookmaker parlay payouts to expose compounding bookmaker margin across multi-leg wagers.

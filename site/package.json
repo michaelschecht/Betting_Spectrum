@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "gen:edges": "tsx scripts/generate-edge-artifacts.ts",
     "check:market": "tsx scripts/check-market.ts",
-    "check:spectrum": "tsx scripts/check-spectrum.ts"
+    "check:spectrum": "tsx scripts/check-spectrum.ts",
+    "check:odds": "tsx scripts/check-odds.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

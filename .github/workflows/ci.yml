@@ -23,4 +23,5 @@ jobs:
       - run: npm run gen:edges -- --check
       - run: npm run check:market
       - run: npm run check:spectrum
+      - run: npm run check:odds
       - run: npm run build

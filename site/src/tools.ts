@@ -1,4 +1,4 @@
-import { Activity, LineChart, type LucideIcon } from 'lucide-react';
+import { Activity, LineChart, Calculator, type LucideIcon } from 'lucide-react';
 
 /**
  * The Edge Spectrum hub tool registry.
@@ -60,5 +60,17 @@ export const TOOLS: Tool[] = [
     status: 'live',
     accent: 'emerald',
     tag: 'Simulator',
+  },
+  {
+    slug: 'odds',
+    title: 'Odds Converter & No-Vig Calculator',
+    blurb:
+      'Convert American, decimal, fractional and implied odds, then strip the bookmaker margin from any market with multiplicative, power or Shin de-vigging.',
+    icon: Calculator,
+    href: '/odds',
+    kind: 'route',
+    status: 'live',
+    accent: 'violet',
+    tag: 'Calculator',
   },
 ];
