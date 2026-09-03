@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import Home from './pages/Home';
 import BacktesterApp from './BacktesterApp';
 import OddsConverter from './pages/OddsConverter';
+import ParlayCalculator from './pages/ParlayCalculator';
 
 /**
  * Slim hub bar shared across tool pages. Hidden on the home page (which has its
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/backtester" element={<BacktesterApp />} />
           <Route path="/odds" element={<OddsConverter />} />
+          <Route path="/parlay" element={<ParlayCalculator />} />
           {/* Unknown client routes fall back to the hub. */}
           <Route path="*" element={<Home />} />
         </Routes>

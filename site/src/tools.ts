@@ -1,4 +1,4 @@
-import { Activity, LineChart, Calculator, type LucideIcon } from 'lucide-react';
+import { Activity, LineChart, Calculator, Layers, type LucideIcon } from 'lucide-react';
 
 /**
  * The Edge Spectrum hub tool registry.
@@ -71,6 +71,18 @@ export const TOOLS: Tool[] = [
     kind: 'route',
     status: 'live',
     accent: 'violet',
+    tag: 'Calculator',
+  },
+  {
+    slug: 'parlay',
+    title: 'Parlay & SGP Hold Calculator',
+    blurb:
+      "Compare the true joint probability of a multi-leg parlay against the book's payout to see how the margin compounds with every leg you add.",
+    icon: Layers,
+    href: '/parlay',
+    kind: 'route',
+    status: 'live',
+    accent: 'amber',
     tag: 'Calculator',
   },
 ];

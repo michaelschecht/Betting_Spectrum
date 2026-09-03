@@ -177,8 +177,9 @@ Phase 7: Public Launch ⚪
    - **Tool:** Bidirectional conversion across American, Decimal, Fractional, and Implied Probabilities with multi-way market hold removal (Power / Multiplicative / Shin methods).
    - **Shipped:** `/odds` — `site/src/odds.ts` (pure math) + `site/src/pages/OddsConverter.tsx`; regression check `npm run check:odds`.
 
-2. [ ] 🟠 **Action 6.2 — True-Odds Parlay / SGP Hold Calculator**
+2. [x] 🟠 **Action 6.2 — True-Odds Parlay / SGP Hold Calculator** 🟢 (2026-09-03)
    - **Tool:** Compares true joint probability against bookmaker parlay payouts to expose compounding bookmaker margin across multi-leg wagers.
+   - **Shipped:** `/parlay` — `parlay()` in `site/src/odds.ts` + `site/src/pages/ParlayCalculator.tsx`; legs assumed independent (correlation input deferred). Covered by `npm run check:odds`.
 
 3. [ ] 🟡 **Action 6.3 — Standalone Kelly & Bankroll Sizing Calculator**
    - **Tool:** Single and simultaneous multi-event Kelly sizing with risk-of-ruin curves and fractional sizing recommendations.

@@ -71,3 +71,21 @@ near(fairAlready.fair[0], 0.5);
 assert.throws(() => devig([2], 'shin'));
 
 console.log('odds.ts: all checks passed');
+
+// ── Parlay ──
+import { parlay } from '../src/odds';
+const coin = { decimal: americanToDecimal(-110), fair: 0.5 };
+const p2 = parlay([coin, coin]);
+near(p2.jointProb, 0.25);
+near(p2.fairDecimal, 4);
+near(p2.bookDecimal, (21 / 11) ** 2);
+near(p2.hold, 1 - 0.25 * (21 / 11) ** 2); // ≈ 8.9%, roughly double the single-leg hold
+assert.ok(p2.hold > 2 * (1 / 22) - 0.01 && p2.hold < 2 * (1 / 22) + 0.01, 'two-leg hold ≈ 2× single hold');
+const p4 = parlay(Array(4).fill(coin));
+assert.ok(p4.hold > p2.hold, 'hold compounds with more legs');
+near(parlay([coin, coin], 4).hold, 0); // quoted at fair price → no hold
+near(parlay([coin], undefined).hold, 1 / 22); // single leg = plain -110 hold
+near(p2.legHolds[0], 1 / (21 / 11) - 0.5);
+assert.throws(() => parlay([]));
+
+console.log('parlay: all checks passed');
