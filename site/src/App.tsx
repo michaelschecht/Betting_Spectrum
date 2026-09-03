@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-do
 import { ChevronLeft } from 'lucide-react';
 import Home from './pages/Home';
 import BacktesterApp from './BacktesterApp';
+import OddsConverter from './pages/OddsConverter';
 
 /**
  * Slim hub bar shared across tool pages. Hidden on the home page (which has its
@@ -37,6 +38,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/backtester" element={<BacktesterApp />} />
+          <Route path="/odds" element={<OddsConverter />} />
           {/* Unknown client routes fall back to the hub. */}
           <Route path="*" element={<Home />} />
         </Routes>

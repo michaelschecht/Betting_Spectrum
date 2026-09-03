@@ -42,10 +42,11 @@
 
 ## 🚀 Overview
 
-**Edge Spectrum** is an interactive playground for exploring mathematical edges. It brings together two core analytical applications:
+**Edge Spectrum** is an interactive playground for exploring mathematical edges. It brings together three analytical applications:
 
 1. **The Edge Spectrum Expected-Return Visualizer** (`/spectrum/`): Compares expected cumulative returns across **187 financial, investing, trading, and gambling activities** over **7 time horizons** (1 Bet to 10 Years), standardized using the **DU/CED framework**.
 2. **The Backtest Simulator** (`/backtester`): Backtests sports wagering strategies across **25 simulated seasons of MLB, NFL, NHL, and NBA games** (2000–2025), providing ROI diagnostics, equity curves, live ESPN scores, and an **AI Strategy Advisor** powered by Gemini.
+3. **Odds Converter & No-Vig Calculator** (`/odds`): Converts American, decimal, fractional and implied odds, and strips bookmaker margin from any multi-way market via **multiplicative, power, or Shin** de-vigging.
 
 ---
 
